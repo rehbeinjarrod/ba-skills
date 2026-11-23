@@ -1,0 +1,14 @@
+{
+  "name": "ba-skills",
+  "owner": {
+    "name": "Jarrod Rehbein"
+  },
+  "plugins": [
+    {
+      "name": "ba",
+      "source": "./",
+      "description": "Business-analysis skills: capture requirements from conversations and get them signed off.",
+      "version": "0.1.0"
+    }
+  ]
+}
