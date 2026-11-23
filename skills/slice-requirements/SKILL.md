@@ -3,13 +3,13 @@ name: slice-requirements
 description: Slices requirements into features, every requirement to deliver in one, and makes the handover brief engineers start from, one a feature. Use when the person wants the work broken into features, wants something to hand to engineers, says a feature is too big, or names a tracker item for a brief. Something for approvers is prepare-signoff-brief.
 ---
 
-First read [references/rules.md](references/rules.md).
+First read [RULES.md](../../shared/RULES.md).
 
 A reply to your proposal starts at step 5. For a handover brief, or a tracker item to put one in, follow [references/handover.md](references/handover.md).
 
 ## 1. Read the records
 
-Run `python3 <skill folder>/scripts/ba.py status`, then read `work.md`.
+Run `python3 <skill folder>/../../helper/ba.py status`, then read `work.md`.
 
 Done when: you hold each requirement's statement and `Feature` line, each Flow's steps, each Feature.
 
@@ -27,15 +27,15 @@ Done when: every requirement is in a feature whose `Starts when` and `Ends when`
 
 ## 3. Write the drafts
 
-Run `python3 <skill folder>/scripts/ba.py check --shape feature`. At the end of `work.md`, write each feature in that shape as a draft, with the Flow steps it delivers. A part gets `- Sliced from: <the feature it replaces>`. Set each requirement's `- Feature:` line to its features. A requirement on your "left out" list gets `- Feature: none (<its reason>)`.
+Run `python3 <skill folder>/../../helper/ba.py check --shape feature`. At the end of `work.md`, write each feature in that shape as a draft, with the Flow steps it delivers. A part gets `- Sliced from: <the feature it replaces>`. Set each requirement's `- Feature:` line to its features. A requirement on your "left out" list gets `- Feature: none (<its reason>)`.
 
-Run `python3 <skill folder>/scripts/ba.py check --fix` and do each fix it states.
+Run `python3 <skill folder>/../../helper/ba.py check --fix` and do each fix it states.
 
 Done when: it reports no finding.
 
 ## 4. Show the proposal
 
-Run `python3 <skill folder>/scripts/ba.py status`. Reply with this, filled from it and `work.md`.
+Run `python3 <skill folder>/../../helper/ba.py status`. Reply with this, filled from it and `work.md`.
 
 ```
 **Features proposed**

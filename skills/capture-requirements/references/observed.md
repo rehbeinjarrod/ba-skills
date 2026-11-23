@@ -6,7 +6,7 @@ Work only from what the person gives you.
 
 ## Write one
 
-Run `python3 <skill folder>/scripts/ba.py check --shape observed` and copy the shape, wording each line as its comment says. `About` names the Feature or Requirement it bears on. `Owner` is who can say whether it is meant.
+Run `python3 <skill folder>/../../helper/ba.py check --shape observed` and copy the shape, wording each line as its comment says. `About` names the Feature or Requirement it bears on. `Owner` is who can say whether it is meant.
 
 In your draft reply, list these under "Seen today, not yet a requirement".
 
@@ -21,6 +21,6 @@ For each record the person judged, by what they called it:
 - defect, and a confirmed Requirement says what should happen: add the two verdict lines and `- Requirement: <that one>`.
 - defect, and none does: add no verdict; write a Question asking what should happen, `About` this record, what you would expect as its `Working answer`.
 
-Run `python3 <skill folder>/scripts/ba.py check` and do each fix it states.
+Run `python3 <skill folder>/../../helper/ba.py check` and do each fix it states.
 
 Done when: the check lists no fix for these records.

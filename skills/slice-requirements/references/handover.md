@@ -4,7 +4,7 @@ One brief for each feature, for the engineers who will build it. Sending a brief
 
 ## 1. Make the briefs
 
-For each confirmed feature, or the one the person asked for, run `python3 <skill folder>/scripts/ba.py bundle handover <its ID>`.
+For each confirmed feature, or the one the person asked for, run `python3 <skill folder>/../../helper/ba.py bundle handover <its ID>`.
 
 Done when: each run says it wrote `faces/handover-<ID>.md`, or that the feature was sliced into parts.
 
@@ -18,7 +18,7 @@ Done when: no line in a brief starts `> {slot:`.
 
 ## 3. Check the briefs
 
-Run `python3 <skill folder>/scripts/ba.py check` and do each fix it states under `faces/`. A fix that replaces a feature by its parts is steps 2 to 4 of the skill, for that feature.
+Run `python3 <skill folder>/../../helper/ba.py check` and do each fix it states under `faces/`. A fix that replaces a feature by its parts is steps 2 to 4 of the skill, for that feature.
 
 Done when: it reports nothing under `faces/`, or the skill's step 4 reply is sent.
 
@@ -43,6 +43,6 @@ Done when: the reply is the filled template. End the turn.
 
 ## 5. Send a brief
 
-For each feature the person asked to send, follow [publish.md](publish.md) with the face `handover <its ID>`.
+For each feature the person asked to send, follow [PUBLISH.md](../../../shared/PUBLISH.md) with the face `handover <its ID>`.
 
 Done when: its last step is.

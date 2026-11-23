@@ -3,7 +3,7 @@ name: forecast-delivery
 description: Forecasts when a piece of work will be delivered, as a range of dates for each feature from a start date and a pace, lays what has finished over it, and makes the Delivery plan. Use first, before reading any file, when the person asks when it will be done, wants a forecast, timeline or delivery plan, gives a pace or start date, or says what has finished.
 ---
 
-First read [references/rules.md](references/rules.md).
+First read [RULES.md](../../shared/RULES.md).
 
 The helper works out every date. You write the lines it reads, and copy the dates it gives.
 
@@ -11,7 +11,7 @@ A reply starts at step 8.
 
 ## 1. Read the records
 
-Run `python3 <skill folder>/scripts/ba.py status` and `python3 <skill folder>/scripts/ba.py check --shape work`, then read `work.md`. With no Feature record, tell the person a forecast counts features, and that `scope-work` or `slice-requirements` writes them. End there.
+Run `python3 <skill folder>/../../helper/ba.py status` and `python3 <skill folder>/../../helper/ba.py check --shape work`, then read `work.md`. With no Feature record, tell the person a forecast counts features, and that `scope-work` or `slice-requirements` writes them. End there.
 
 Done when: you hold the Work's shape and the Features that are not withdrawn.
 
@@ -34,7 +34,7 @@ Done when: the section holds what was read or said, and nothing else.
 
 ## 4. Make the plan
 
-Run `python3 <skill folder>/scripts/ba.py bundle delivery`. When it names a line to add, add it as shown and run it again.
+Run `python3 <skill folder>/../../helper/ba.py bundle delivery`. When it names a line to add, add it as shown and run it again.
 
 Done when: it says it wrote `faces/delivery.md`.
 
@@ -46,7 +46,7 @@ Done when: no line starts `> {slot:`.
 
 ## 6. Check
 
-Run `python3 <skill folder>/scripts/ba.py check` and do each fix it states.
+Run `python3 <skill folder>/../../helper/ba.py check` and do each fix it states.
 
 Done when: it reports no finding.
 
@@ -75,7 +75,7 @@ The plan is faces/delivery.md.
 
 Done when: the reply is the filled template, three questions at most. End the turn.
 
-To send it when asked, follow [references/publish.md](references/publish.md) for `delivery`.
+To send it when asked, follow [PUBLISH.md](../../shared/PUBLISH.md) for `delivery`.
 
 ## 8. On a reply
 

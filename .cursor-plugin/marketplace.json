@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "ba",
+      "name": "jarrodrehbein",
       "source": "./",
       "description": "Business-analysis skills: capture requirements from conversations and get them signed off.",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ]
 }

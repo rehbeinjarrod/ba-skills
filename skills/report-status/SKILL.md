@@ -3,7 +3,7 @@ name: report-status
 description: Says where a piece of work stands, what to do next and who owes what, with a message to chase each. Use first, before reading any file, when the person asks where things are, what is next, who they are waiting on, or for chasers. What the records say on a subject is ask-records.
 ---
 
-First read [references/rules.md](references/rules.md).
+First read [RULES.md](../../shared/RULES.md).
 
 Every count, name, date and age in your reply is the helper's: copy it. This skill sends nothing, and writes only an `Asked` line.
 
@@ -13,7 +13,7 @@ A request for chasers, or for the messages, starts at step 3; word that a questi
 
 ## 1. Get the status
 
-Run `python3 <skill folder>/scripts/ba.py status`. With no `work.md`, tell the person there are no records yet, and stop.
+Run `python3 <skill folder>/../../helper/ba.py status`. With no `work.md`, tell the person there are no records yet, and stop.
 
 Done when: it prints a `Next:` list.
 
@@ -43,7 +43,7 @@ Done when: the reply is the filled template. End the turn.
 
 ## 3. Give the chasers
 
-Run `python3 <skill folder>/scripts/ba.py status --chasers`.
+Run `python3 <skill folder>/../../helper/ba.py status --chasers`.
 
 Reply with this, filled from the printout.
 

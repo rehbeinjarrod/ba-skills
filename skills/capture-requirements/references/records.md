@@ -21,7 +21,7 @@ The heading is the question itself, answerable in a sentence by one person. `Rai
 
 ## Flow
 
-Write a Flow when the material says who does what, and then what. When the person is there to ask and says "it depends", or a job passes between people, read [cards/walk-a-process.md](cards/walk-a-process.md).
+Write a Flow when the material says who does what, and then what. When the person is there to ask and says "it depends", or a job passes between people, read [shared/cards/walk-a-process.md](../../../shared/cards/walk-a-process.md).
 
 - One step for each action by one person or team, named as that action: "Office cancels the class".
 - Where the material says "if" or "unless", the step before is a decision: give it one `Go to` line for each branch, each with its `(when ...)`.

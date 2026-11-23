@@ -3,19 +3,19 @@ name: capture-requirements
 description: Turns material into draft requirements, flows, open questions and observations of what a system does today, shows the draft, and confirms it when the person agrees. Use first, before editing any file, when the person shares notes, a transcript, an email or a document, reports what a system does, or replies to a draft. An idea with little written is scope-work; one feature in depth, define-feature.
 ---
 
-First read [references/rules.md](references/rules.md).
+First read [RULES.md](../../shared/RULES.md).
 
 A reply to your draft starts at step 8.
 
 ## 1. Find the workspace
 
-Run `python3 <skill folder>/scripts/ba.py check`. If it lists records, read `work.md`.
+Run `python3 <skill folder>/../../helper/ba.py check`. If it lists records, read `work.md`.
 
 Done when: you know the records, or there is no `work.md`.
 
 ## 2. Get the shapes
 
-Run `python3 <skill folder>/scripts/ba.py check --shape all`.
+Run `python3 <skill folder>/../../helper/ba.py check --shape all`.
 
 Done when: you hold the shapes.
 
@@ -52,7 +52,7 @@ Done when: every item but a duplicate is in `work.md` as a draft.
 
 ## 6. Check
 
-Run `python3 <skill folder>/scripts/ba.py check` and do each fix it states.
+Run `python3 <skill folder>/../../helper/ba.py check` and do each fix it states.
 
 Done when: it reports no findings, and a `Home:` page is saved.
 
@@ -93,5 +93,5 @@ Done when: the reply is the filled template. End the turn.
 
 1. Change each record the person corrected, and each record an accepted refinement is `About`, to say the new wording, a confirmed record included. Done when: each says it.
 2. On what they accepted, set `Status: confirmed` and change `proposed:` to `said:`. Add `Answer` and `Answered by` to each Question they answered or settled, a confirmed working answer included. Done when: no accepted record is a draft.
-3. Run `python3 <skill folder>/scripts/ba.py check --fix`, then do step 6. Done when: step 6 is.
+3. Run `python3 <skill folder>/../../helper/ba.py check --fix`, then do step 6. Done when: step 6 is.
 4. Tell the person what is confirmed and what is still open. Done when: the reply names both.
