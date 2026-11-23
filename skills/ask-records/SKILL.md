@@ -3,13 +3,13 @@ name: ask-records
 description: Answers a question about a piece of work, or the business it serves, from the records, naming the record behind each statement and saying what no record holds. Use first, before reading any file, when the person asks what was agreed, what a feature covers, what is in scope or who said so. Where the work stands and who owes what is report-status.
 ---
 
-First read [references/rules.md](references/rules.md).
+First read [RULES.md](../../shared/RULES.md).
 
 A "yes" to your offer starts at step 4.
 
 ## 1. Read the records
 
-Run `python3 <skill folder>/scripts/ba.py status`, then read `work.md` and any file in `records/`. For what was approved or has changed, run `python3 <skill folder>/scripts/ba.py baseline` and read `baselines/<name>/records.md`.
+Run `python3 <skill folder>/../../helper/ba.py status`, then read `work.md` and any file in `records/`. For what was approved or has changed, run `python3 <skill folder>/../../helper/ba.py baseline` and read `baselines/<name>/records.md`.
 
 Done when: you hold every record's words, ID and status.
 
@@ -48,7 +48,7 @@ Done when: the reply is the filled template, and `work.md` is as you found it.
 
 ## 4. Record the question
 
-1. Run `python3 <skill folder>/scripts/ba.py check --shape question`. Done when: you hold the shape.
+1. Run `python3 <skill folder>/../../helper/ba.py check --shape question`. Done when: you hold the shape.
 2. Add one Question to `work.md` in that shape: its heading the missing thing as the person asked it, `Raised by` whoever asked it, else the Work's business analyst, `About` the records you named in the offer. Leave out `Working answer` and `Answer`. Done when: `work.md` holds one more record.
-3. Run `python3 <skill folder>/scripts/ba.py check --fix` and do each fix it states. Done when: it reports no finding.
+3. Run `python3 <skill folder>/../../helper/ba.py check --fix` and do each fix it states. Done when: it reports no finding.
 4. Tell the person its name and ID. Done when: the reply names it.

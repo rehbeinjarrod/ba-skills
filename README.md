@@ -28,21 +28,21 @@ In a Claude Code session, type these two lines, one at a time:
 
 ```
 /plugin marketplace add rehbeinjarrod/ba-skills
-/plugin install ba@ba-skills
+/plugin install jarrodrehbein@ba-skills
 ```
 
-Then start a new session. To check it worked, type `/plugin` and look for `ba` under the installed plugins, or ask "which BA skills do you have?": the answer should name the nine above.
+Install the whole plugin: a skill is not installable alone, because every skill uses the one helper and the one set of shared rules and method cards. To limit it, remove the folders of the skills you do not want from the plugin's `skills/` folder. Then start a new session. To check it worked, type `/plugin` and look for `jarrodrehbein` under the installed plugins, or ask "which BA skills do you have?": the answer should name the nine above.
 
 To get a later release:
 
 ```
 /plugin marketplace update ba-skills
-/plugin update ba@ba-skills
+/plugin update jarrodrehbein@ba-skills
 ```
 
 ## Install in Cursor
 
-Cursor installs a plugin from a repository through a team's marketplace. In the Cursor dashboard, open Plugins, choose to import from a repository, and give `rehbeinjarrod/ba-skills`. Then turn the `ba` plugin on. To check it worked, ask "which BA skills do you have?" in a new chat.
+Cursor installs a plugin from a repository through a team's marketplace. In the Cursor dashboard, open Plugins, choose to import from a repository, and give `rehbeinjarrod/ba-skills`. Then turn the `jarrodrehbein` plugin on. Install the whole plugin; to limit it, remove the skill folders you do not want. To check it worked, ask "which BA skills do you have?" in a new chat.
 
 One thing to know in Cursor: for a skill that takes several turns (a draft, then your reply, then a confirmation), use a custom mode (Alt+Enter), so the same skill carries on from turn to turn.
 
@@ -54,7 +54,9 @@ One thing to know in Cursor: for a skill that takes several turns (a draft, then
 
 ## What is in this repository
 
-- `skills/`: the nine skills. Each folder is complete in itself.
+- `skills/`: the nine skills.
+- `helper/`: the one helper the skills run, with the default house (words and templates) beside it.
+- `shared/`: the rules, the Confluence note and the method cards every skill reads.
 - `docs/skills/`: the pages for people.
 - `.claude-plugin/` and `.cursor-plugin/`: what lets each tool install the plugin.
 - `CHANGELOG.md`: what changed in each release.

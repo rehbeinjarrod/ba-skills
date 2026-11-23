@@ -4,7 +4,7 @@ A baseline is a frozen copy of the records, which an approver's yes names.
 
 ## 1. See whether a baseline is due
 
-Run `python3 <skill folder>/scripts/ba.py status`. Under `Next:`, find a line starting `Baseline:` or `Changed since approval:`.
+Run `python3 <skill folder>/../../helper/ba.py status`. Under `Next:`, find a line starting `Baseline:` or `Changed since approval:`.
 
 Done when: you hold that line. With none, this is the end.
 
@@ -28,6 +28,6 @@ Done when: the passage holds the count the section states, or the brief has no s
 
 ## 5. Check
 
-Run `python3 <skill folder>/scripts/ba.py check` and do each fix it states under `faces/signoff.md`.
+Run `python3 <skill folder>/../../helper/ba.py check` and do each fix it states under `faces/signoff.md`.
 
 Done when: the brief's last line names the baseline, and the check reports nothing under it.

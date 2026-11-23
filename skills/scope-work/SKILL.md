@@ -3,13 +3,13 @@ name: scope-work
 description: Scopes a piece of work by questioning, from a sentence or two, with three questions a turn, each with a recommended answer, then the Scope brief. Use when the person has an idea and little written, wants work scoped, answers a scope question, or asks for the Scope brief. Notes or a document in hand go to capture-requirements.
 ---
 
-First read [references/rules.md](references/rules.md).
+First read [RULES.md](../../shared/RULES.md).
 
 A reply starts at step 6. "Make the brief" starts at step 7.
 
 ## 1. Read
 
-Run `python3 <skill folder>/scripts/ba.py check --shape all`. Read `work.md` if there is one.
+Run `python3 <skill folder>/../../helper/ba.py check --shape all`. Read `work.md` if there is one.
 
 Done when: you hold the shapes and any records.
 
@@ -27,12 +27,12 @@ Done when: `work.md` holds the Work with its `Goal`, and a business Requirement.
 
 The scope has seven points, in order:
 
-1. The Goal: who is better off, and how anyone would know. A solution named, not a result: read [references/cards/ladder-to-the-need.md](references/cards/ladder-to-the-need.md).
+1. The Goal: who is better off, and how anyone would know. A solution named, not a result: read [shared/cards/ladder-to-the-need.md](../../shared/cards/ladder-to-the-need.md).
 2. The name.
 3. Who decides, and who else must change how they work: `Approvers`, two size lines.
 4. What must be true to meet the Goal: three to seven business Requirements.
-5. What is left out. They cannot say: read [references/cards/draw-the-scope-line.md](references/cards/draw-the-scope-line.md).
-6. Whether it needs several features, and their names: `Several features`. On yes, read [references/cards/map-the-features.md](references/cards/map-the-features.md).
+5. What is left out. They cannot say: read [shared/cards/draw-the-scope-line.md](../../shared/cards/draw-the-scope-line.md).
+6. Whether it needs several features, and their names: `Several features`. On yes, read [shared/cards/map-the-features.md](../../shared/cards/map-the-features.md).
 7. Whether a regulation or contract applies, or information moves from an old system.
 
 A point is settled when the person said it or its Question has an `Answer`. Each point not settled gets a Question: `Working answer` is the answer you recommend, a statement that stands alone; `Owner` is the person. The first three are this turn's.
@@ -41,7 +41,7 @@ Done when: every point is settled or a Question with both lines.
 
 ## 4. Check
 
-Run `python3 <skill folder>/scripts/ba.py check --fix`, do each fix, then run `python3 <skill folder>/scripts/ba.py status`.
+Run `python3 <skill folder>/../../helper/ba.py check --fix`, do each fix, then run `python3 <skill folder>/../../helper/ba.py status`.
 
 Done when: no finding is left.
 
@@ -78,9 +78,9 @@ Done when: the reply is the filled template, three questions at most. End the tu
 ## 7. Brief
 
 1. Unless it is there, add the Question "Does <sponsor> agree the scope of this work?", its `Owner` the sponsor. Done when: `work.md` holds it.
-2. Run `python3 <skill folder>/scripts/ba.py bundle scope`. Done when: it wrote `faces/scope.md`.
+2. Run `python3 <skill folder>/../../helper/ba.py bundle scope`. Done when: it wrote `faces/scope.md`.
 3. Read `faces/scope.md` to the end. Put your passage in place of each slot, its quoted lines included. Done when: no line starts `> {slot:`.
-4. Run `python3 <skill folder>/scripts/ba.py check` and do each fix. Done when: it reports nothing under `faces/scope.md`.
+4. Run `python3 <skill folder>/../../helper/ba.py check` and do each fix. Done when: it reports nothing under `faces/scope.md`.
 5. Reply with your passages, the file, what is still open and who is to agree it.
 
-To send it when asked, follow [references/publish.md](references/publish.md) for `scope`.
+To send it when asked, follow [PUBLISH.md](../../shared/PUBLISH.md) for `scope`.

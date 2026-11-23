@@ -4,7 +4,7 @@ A place is stored once, after the person has seen a test page and a test item la
 
 ## 1. Ask for the places
 
-Run `python3 <skill folder>/scripts/ba.py check --adopt house.md`. For each place it shows as `not set`, ask in one message for its link: this work's parent page (with no `work.md` here, the page all the team's work sits under), and the project for each board in the house's hierarchy. End the turn.
+Run `python3 <skill folder>/../../helper/ba.py check --adopt house.md`. For each place it shows as `not set`, ask in one message for its link: this work's parent page (with no `work.md` here, the page all the team's work sits under), and the project for each board in the house's hierarchy. End the turn.
 
 Done when: each is given or declined, or none was `not set`.
 
@@ -14,16 +14,16 @@ When the pack has no `=== destinations.md ===` part, add the shipped one whole:
 
 ```
 printf '\n=== destinations.md ===\n\n' >> house.md
-cat <skill folder>/scripts/house/destinations.md >> house.md
+cat <skill folder>/../../helper/house/destinations.md >> house.md
 ```
 
 Open each link given with your tools. Fill that section's lines, and `Site`, `Cloud ID` and `Kept by` (the person), from what the tools return. With a `work.md` here, the page's four lines go under `### Destinations` on the Work instead, as `check --shape work` shows. A declined place stays `not set`.
 
-Done when: `python3 <skill folder>/scripts/ba.py check --adopt house.md` shows each given section set, or the Work holds the four lines.
+Done when: `python3 <skill folder>/../../helper/ba.py check --adopt house.md` shows each given section set, or the Work holds the four lines.
 
 ## 3. Make the test bodies
 
-Run `python3 <skill folder>/scripts/ba.py bundle landing --house house.md`.
+Run `python3 <skill folder>/../../helper/ba.py bundle landing --house house.md`.
 
 Done when: it prints a note.
 
