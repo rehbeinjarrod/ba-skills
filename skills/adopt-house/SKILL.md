@@ -1,6 +1,6 @@
 ---
 name: adopt-house
-description: Sets up an organisation's house: its words, headings and layout for briefs, drafted from documents it already approved, and the places briefs and tracker items are sent. Use when the person wants briefs to look or read like their organisation's own, gives example documents, names where briefs or tracker items go, asks to land a test there, or replies to a house you showed.
+description: Sets up an organisation's house, meaning its words, headings and layout for briefs, drafted from documents it already approved, and the places briefs and tracker items are sent. Use when the person wants briefs to look or read like their organisation's own, gives example documents, names where briefs or tracker items go, asks to land a test there, or replies to a house you showed.
 ---
 
 First read [references/rules.md](references/rules.md).

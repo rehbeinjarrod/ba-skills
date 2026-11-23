@@ -1,6 +1,6 @@
 ---
 name: scope-work
-description: Scopes a piece of work by questioning, from a sentence or two: three questions a turn, each with a recommended answer, then the Scope brief. Use when the person has an idea and little written, wants work scoped, answers a scope question, or asks for the Scope brief. Notes or a document in hand go to capture-requirements.
+description: Scopes a piece of work by questioning, from a sentence or two, with three questions a turn, each with a recommended answer, then the Scope brief. Use when the person has an idea and little written, wants work scoped, answers a scope question, or asks for the Scope brief. Notes or a document in hand go to capture-requirements.
 ---
 
 First read [references/rules.md](references/rules.md).

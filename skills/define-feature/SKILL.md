@@ -1,6 +1,6 @@
 ---
 name: define-feature
-description: Defines one feature in depth: each job it does as a draft flow, its branches, and three questions a turn, each with a recommended answer. Use when the person names a feature to define, go through or question, asks for its flow or picture, or answers its questions. What a feature covers is ask-records.
+description: Defines one feature in depth, with each job it does as a draft flow, its branches, and three questions a turn, each with a recommended answer. Use when the person names a feature to define, go through or question, asks for its flow or picture, or answers its questions. What a feature covers is ask-records.
 ---
 
 First read [references/rules.md](references/rules.md).
