@@ -73,7 +73,7 @@ Reply with this, filled from `faces/delivery.md` and `work.md`.
 The plan is faces/delivery.md.
 ```
 
-Done when: the reply is the filled template, three questions at most. End the turn.
+Done when: the reply is the filled template, every question from step 2 in it. End the turn.
 
 To send it when asked, follow [PUBLISH.md](../../shared/PUBLISH.md) for `delivery`.
 

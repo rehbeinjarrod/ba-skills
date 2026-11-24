@@ -4,7 +4,7 @@
 
 **Say** "Capture the requirements from these notes", and paste or attach them.
 
-**What comes back first** is a draft, in the same turn: each requirement in the speaker's words with its examples, any process as numbered steps, the assumptions made, the size, and the three questions whose answers would change most.
+**What comes back first** is a draft, in the same turn: each requirement in the speaker's words with its examples, any process as numbered steps, the assumptions made, the size, and every question that can be answered now, the most important first. Answer some, all or none: an unanswered question stays open.
 
 **How to tell it is working**
 

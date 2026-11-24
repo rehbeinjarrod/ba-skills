@@ -1,6 +1,6 @@
 ---
 name: scope-work
-description: Scopes a piece of work by questioning, from a sentence or two, with three questions a turn, each with a recommended answer, then the Scope brief. Use when the person has an idea and little written, wants work scoped, answers a scope question, or asks for the Scope brief. Notes or a document in hand go to capture-requirements.
+description: Scopes a piece of work by questioning, from a sentence or two, with every open question each turn, each with a recommended answer, then the Scope brief. Use when the person has an idea and little written, wants work scoped, answers a scope question, or asks for the Scope brief. Notes or a document in hand go to capture-requirements.
 ---
 
 First read [RULES.md](../../shared/RULES.md).
@@ -35,9 +35,11 @@ The scope has seven points, in order:
 6. Whether it needs several features, and their names: `Several features`. On yes, read [shared/cards/map-the-features.md](../../shared/cards/map-the-features.md).
 7. Whether a regulation or contract applies, or information moves from an old system.
 
-A point is settled when the person said it or its Question has an `Answer`. Each point not settled gets a Question: `Working answer` is the answer you recommend, a statement that stands alone; `Owner` is the person. The first three are this turn's.
+A point is settled when the person said it or its Question has an `Answer`. Each point not settled gets a Question: `Working answer` is the answer you recommend, a statement that stands alone; `Owner` is the person.
 
-Done when: every point is settled or a Question with both lines.
+Ask every Question that can be answered now. Hold one back only when its answer depends on a Question not yet answered.
+
+Done when: every point is settled, a Question with both lines, or held back for the Question it depends on.
 
 ## 4. Check
 
@@ -62,12 +64,12 @@ Reply with this, filled from `work.md`.
 **Questions**
 1. <question>
    Recommended: <its working answer>. "Yes" takes it.
-<count> more are recorded.
+Held back: <points that wait for these answers; omit with none>
 
 These are drafts. Answer by number, or say "make the brief".
 ```
 
-Done when: the reply is the filled template, three questions at most. End the turn.
+Done when: the reply is the filled template and asks every Question that can be answered now. End the turn.
 
 ## 6. Answers
 
