@@ -1,6 +1,6 @@
 ---
 name: define-feature
-description: Defines one feature in depth, with each job it does as a draft flow, its branches, and three questions a turn, each with a recommended answer. Use when the person names a feature to define, go through or question, asks for its flow or picture, or answers its questions. What a feature covers is ask-records.
+description: Defines one feature in depth, with each job it does as a draft flow, its branches, and every open question each turn, each with a recommended answer. Use when the person names a feature to define, go through or question, asks for its flow or picture, or answers its questions. What a feature covers is ask-records.
 ---
 
 First read [RULES.md](../../shared/RULES.md).
@@ -11,39 +11,39 @@ A reply starts at step 6.
 
 ## 1. Read the records
 
-Run `python3 <skill folder>/../../helper/ba.py check --shape all`, then read `work.md`. A feature named with no Feature record gets a draft one, its `Intent` the person's words.
+Run `python3 <skill folder>/../../helper/ba.py check --shape all`; read `work.md`. A feature with no Feature record gets a draft one, its `Intent` the person's words.
 
-Done when: you hold the shapes, the Feature, its requirements and its Flows.
+Done when: you hold the shapes, the Feature, its requirements and Flows.
 
 ## 2. Write the jobs
 
-A job is one named person, in one situation, wanting one result. Find the feature's in its `Intent` and requirements.
+A job is one named person, in one situation, wanting one result. Find them in its `Intent` and requirements.
 
 Each job with no Flow gets a draft:
 
 - `Trigger` is the situation, `Overview` the job in one sentence, `Source` its requirement's.
 - Its steps are what a person or team does or receives, the first and last at least.
-- Where a requirement says "if", "unless" or a limit, the step before is a decision: a `Go to` line with its `(when ...)` for each way it can go.
+- Where a requirement says "if", "unless" or a limit, the step before is a decision: a `Go to` line with its `(when ...)` for each way.
 
-A new branch of a job that has a Flow goes into that Flow: a `Go to` in from the step it follows, and one back.
+A new branch goes into its job's Flow: a `Go to` in from the step it follows, and one back.
 
-Done when: the Feature's `Flow` line names a Flow of two steps or more for every job.
+Done when: the `Flow` line names a Flow of two steps or more for every job.
 
 ## 3. Find the gaps
 
-Take the first three:
+Gaps:
 
 1. a Flow whose last step is no one's result
 2. a decision's `Go to` with no condition
 3. a condition with no Requirement stating its rule
 4. a rule with no example on one side of its condition
-5. nothing on how well the feature must work: read [shared/cards/probe-quality-needs.md](../../shared/cards/probe-quality-needs.md)
+5. nothing on how well it must work: read [shared/cards/probe-quality-needs.md](../../shared/cards/probe-quality-needs.md)
 
-On "it depends", or a job passing between people, read [shared/cards/walk-a-process.md](../../shared/cards/walk-a-process.md). On two conditions on one step, read [shared/cards/untangle-the-rules.md](../../shared/cards/untangle-the-rules.md).
+On "it depends" or a job passing between people, read [shared/cards/walk-a-process.md](../../shared/cards/walk-a-process.md). On two conditions on one step, read [shared/cards/untangle-the-rules.md](../../shared/cards/untangle-the-rules.md).
 
-Write each as a Question: `About` names the Flow or Requirement, `Working answer` is your recommended answer, `Owner` the Work's business analyst, by name.
+Write each gap as a Question: `About` names the Flow or Requirement, `Working answer` is your recommended answer, `Owner` the Work's business analyst. Ask every gap that can be answered now; hold one back only when its answer depends on a Question not yet answered.
 
-Done when: at most three new Questions are in `work.md`, each with those lines.
+Done when: each gap is a Question in `work.md` with those lines, or held back.
 
 ## 4. Check
 
@@ -53,7 +53,7 @@ Done when: none is left.
 
 ## 5. Reply
 
-Reply with this, filled from `work.md`, and end the turn.
+Reply with this, filled from `work.md`.
 
 ```
 **<feature name>**: <its intent>
@@ -73,17 +73,17 @@ Reply with this, filled from `work.md`, and end the turn.
 These are drafts. Answer by number, or say "picture".
 ```
 
-Done when: the reply is the filled template.
+Done when: the reply is the filled template. End the turn.
 
 ## 6. Record answers
 
 1. Add `Answer`, and `Answered by` naming its `Owner`, to each Question answered; "yes" makes its working answer the answer. Done when: each has both.
-2. Write what follows: steps, `Go to` lines with conditions, a Requirement naming the Feature for each rule, an example each side of its condition, the person's own as `said:`. Done when: every answer shows in a Flow or Requirement.
-3. A screen, storage or how a system does its part goes under `### Left to engineering` on its requirement. On a solution named, not a need, read [shared/cards/ladder-to-the-need.md](../../shared/cards/ladder-to-the-need.md). Done when: no step or statement holds it.
-4. After "yes" to every question, or "stop", do step 7; otherwise steps 3 to 5.
+2. Write what follows: steps, `Go to` lines with conditions, a Requirement naming the Feature for each rule, an example each side of its condition (the person's own as `said:`). Done when: every answer shows in a Flow or Requirement.
+3. A screen, storage or how a system works goes under `### Left to engineering` on its requirement. A solution named, not a need: read [shared/cards/ladder-to-the-need.md](../../shared/cards/ladder-to-the-need.md). Done when: no step or statement holds it.
+4. After "yes" to every question, or "stop", do step 7; else steps 3 to 5.
 
 ## 7. Stop asking
 
-Do step 4. With no Question of yours unanswered, set `Status: confirmed` on the Feature's Flows. Say that `slice-requirements` makes the handover brief. End the turn.
+Do step 4. With none of your Questions unanswered, set `Status: confirmed` on the Feature's Flows. Say `slice-requirements` makes the handover brief. End the turn.
 
 Done when: the reply asks nothing.

@@ -4,7 +4,7 @@
 
 **Say** "Scope this work:" and a sentence or two about it. Later, "make the brief".
 
-**What comes back first** is a draft scope written from what you said and three questions, each with a recommended answer. "Yes" takes the recommendation.
+**What comes back first** is a draft scope written from what you said and every question it can ask now, each with a recommended answer. "Yes" takes the recommendation.
 
 **How to tell it is working**
 
@@ -12,7 +12,7 @@
 - Every question asked is recorded with its recommended answer, so an unanswered one is not lost.
 - Each answer shows up in the next "Scope so far".
 
-**It will not** ask more than three questions a turn, wait for every answer before making the Scope brief, or take a solution as the goal: it asks what result the solution is for.
+**It will not** hold back a question you could answer now, wait for every answer before making the Scope brief, or take a solution as the goal: it asks what result the solution is for.
 
 **Good to know**
 

@@ -2,6 +2,10 @@
 
 Each release has a number of three parts. While the plugin is being piloted the first part is 0. The middle part goes up when a skill, or a brief it makes, gains or changes something a person would notice. The last part goes up for a fix that changes nothing a person has to learn.
 
+## 0.3.0
+
+- A skill that questions in rounds now asks every question it can ask at that point, each with its recommended answer, instead of three a turn: `scope-work`, `define-feature`, and the questions that come with the first draft in `capture-requirements`. A question waits only when its answer depends on another not yet answered. You may answer some, all or none; an unanswered question stays open.
+
 ## 0.2.0
 
 The first release after the pilot's first jobs.

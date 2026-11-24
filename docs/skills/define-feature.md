@@ -4,7 +4,7 @@
 
 **Say** "Define the refunds feature." Later, answer by number, or say "picture" for the process diagram.
 
-**What comes back first** is the feature's intent, each job as numbered steps with who does each and where it branches, the rules found, and at most three questions, each with a recommended answer. "Yes" takes the recommendation.
+**What comes back first** is the feature's intent, each job as numbered steps with who does each and where it branches, the rules found, and every question it can ask now, each with a recommended answer. "Yes" takes the recommendation.
 
 **How to tell it is working**
 

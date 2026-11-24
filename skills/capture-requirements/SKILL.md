@@ -78,16 +78,13 @@ Reply with this, filled in from `work.md`.
 **Size: <Large if `Several features` is yes, else Medium if any other line is, else Small>**
 - <each of the Work's yes or no lines>
 
-**Three questions first**
-1. <the question whose answer changes most>
-2. <the next>
-3. <the next>
-<count> more are recorded.
+**Questions first**
+- <each Question that can be answered now, the most important first>
 
 These are drafts. Say "confirm", or tell me what to change.
 ```
 
-Done when: the reply is the filled template. End the turn.
+Done when: the reply is the filled template, asking every Question that can be answered now. End the turn.
 
 ## 8. Confirm
 
