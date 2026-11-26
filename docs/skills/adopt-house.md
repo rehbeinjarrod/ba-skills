@@ -19,3 +19,4 @@
 - Every place comes from you, as a link. Before a place is stored, a test page and a test item are sent there for you to look at, and it is kept only on your yes.
 - A house is set up once and shared by a team. It holds the boards. The page a piece of work's documents are created under is held with that work's records, so each piece of work names its own.
 - Without a connection to your wiki and tracker, briefs are left in your folder for you to place by hand.
+- A feature can have two documents: the handover brief, for the engineers and their agents, and a feature summary, for the business going into build. The summary is your own thin template. Give it and say what it is for; with none, only the handover brief is made.

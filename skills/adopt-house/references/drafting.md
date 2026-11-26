@@ -25,8 +25,11 @@ Each document takes the shipped template nearest in form:
 | requirements in a priority table | `signoff-moscow.md` |
 | a process: a diagram, then a table for each step | `signoff-process-map.md` |
 | what engineers build one feature from | `handover.md` |
+| what the business reads when one feature goes into build | `summary.md` |
 
-When the pack has no part of that name, add the shipped one whole:
+`summary.md` has no shipped template: it is the house's own, a second document beside `handover.md`. Write it under `=== templates/summary.md ===` from the document's headings, in order. Under each `## ` heading put its `{job: ...}` line (`summary`, `rules`, `scope` or `open`), then each `{block: ...}` that fills it, taken from the shipped `handover.md`. A job the document lacks is one line before the first heading: `{omit: <job>, because <reason>}`.
+
+For any other template, when the pack has no part of that name, add the shipped one whole:
 
 ```
 printf '\n=== templates/<template> ===\n\n' >> house.md
@@ -35,7 +38,7 @@ cat <skill folder>/../../helper/house/templates/<template> >> house.md
 
 Then, in the pack, give each section the document's heading for the same content, and put the sections in the document's order. A section moves whole, from its `## ` line to the line above the next. A section the document lacks stays in place. Headings and plain sentences are the house's to word.
 
-Done when: each of the document's headings is on a section or on the "not used" list, and every line starting `{job:`, `{block:` or `>` is as shipped.
+Done when: each of the document's headings is on a section or on the "not used" list, and every line starting `{job:`, `{block:` or `>` is as shipped, or in `summary.md` names a job or block the helper has.
 
 ## 3. Hierarchy
 

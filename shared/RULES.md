@@ -1,5 +1,5 @@
 - `<skill folder>` in a command is this skill's own folder: the helper is `python3 <skill folder>/../../helper/ba.py <verb>`, run from the current folder, the one this session started in. If it will not run, tell the person to install Python 3 and stop.
-- The records are `work.md` in the current folder. Read and edit them as ordinary text, and write only inside that folder.
+- The records are `work.md` in the current folder and, once a feature's records are filed, the files `status` names in `records/`. A new record goes in `work.md`. Read and edit them as ordinary text, and write only inside that folder.
 - When the Work record has a `Home:` line, or the person names a Confluence page for the records, follow [HOME.md](HOME.md): fetch before step 1, save after each change to `work.md`.
 - A record no longer wanted stays in the file with `Status: withdrawn`.
 - Keep what a person said apart from what you added: an example you add is `proposed` until the person confirms it, and what you take as true is a Question with a `Working answer` and an `Owner`.

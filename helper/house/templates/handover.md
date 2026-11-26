@@ -88,6 +88,8 @@ Each was settled by the person named. Build on it as written. If one looks wrong
 ## Not in this {Feature}
 {job: scope}
 
+{block: held back}
+
 Out of scope for the whole work:
 
 {block: out of scope}
@@ -96,10 +98,12 @@ Other {Features} of this work, each with a brief of its own:
 
 {block: other features}
 
-## Taken as true
+## For the whole work
 {job: scope}
 
-{block: plain assumptions}
+These {Requirements} bear on every {Feature} of this work. They are named here, not stated.
+
+{block: whole work}
 
 ## Open {Questions}
 {job: open}
@@ -129,7 +133,7 @@ Points that came up with the business and were left to you:
 ## Not yours to decide
 {job: ask}
 
-Every open question above, everything under "Taken as true", and any business decision this brief does not cover: what the rule is, who may do something, what a person is told, an amount, a date or a limit. When you meet one, ask the business analyst, on the tracker item this brief came with, giving the question in one sentence, the options you can see and the one you would take if forced. If you have to build before the answer comes, say what you built on. If the present system does something these requirements do not mention, tell the analyst what happens, in business words, and where you saw it; copy nothing from it.
+Every open question above, anything this brief names for the whole work, and any business decision this brief does not cover: what the rule is, who may do something, what a person is told, an amount, a date or a limit. When you meet one, ask the business analyst, on the tracker item this brief came with, giving the question in one sentence, the options you can see and the one you would take if forced. If you have to build before the answer comes, say what you built on. If the present system does something these requirements do not mention, tell the analyst what happens, in business words, and where you saw it; copy nothing from it.
 
 {block: people}
 

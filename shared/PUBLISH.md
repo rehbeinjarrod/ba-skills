@@ -10,7 +10,7 @@ Done when: it prints a note. A printout that begins "Fetch" asks for a house pag
 
 ## 2. Read the note
 
-Done when: you can name each page to find or create and each `Create`, `Update` and `Link` line it holds, or that it holds none.
+Done when: you can name each page to find or create and each `Create`, `Update`, `Attach` and `Link` line it holds, or that it holds none.
 
 ## 3. Hand over, when there is nothing to send to
 
@@ -20,7 +20,7 @@ Done when: the reply names both files and that place.
 
 ## 4. Send
 
-Do each line in the note's order, with the IDs, project, type, title and parent as written. Where a line names a file as the body, read the file and send its whole text, character for character.
+Do each line in the note's order, with the IDs, project, type, title and parent as written. Where a line names a file as the body, read the file and send its whole text, character for character. An `Attach` line names a file to attach to an item as it is; the line under it says what to do when your tools cannot.
 
 Done when: each call has succeeded and you hold each reply's ID or key, version and link. A failed call is told to the person, and nothing is recorded.
 

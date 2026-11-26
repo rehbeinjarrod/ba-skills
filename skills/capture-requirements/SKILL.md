@@ -11,7 +11,7 @@ A reply to your draft starts at step 8.
 
 Run `python3 <skill folder>/../../helper/ba.py check`. If it lists records, read `work.md`.
 
-Done when: you know the records, or there is no `work.md`.
+Done when: you know the records, or that there are none.
 
 ## 2. Get the shapes
 
@@ -23,7 +23,7 @@ Done when: you hold the shapes.
 
 Each point becomes one of:
 
-- a Requirement: something the work must achieve or respect, a deadline included
+- a Requirement: something asked of the work, a deadline or a won't-have included
 - a Question: something unknown or unsettled. What the material, or you, take as true meanwhile is its `Working answer`
 - a step in a Flow: who does what, then what
 - a line on the Work: goal, people, out of scope
@@ -34,7 +34,7 @@ Done when: every point is an item, or on a short "not used" list.
 
 ## 4. Label the items
 
-Each item gets one label. With no records yet, each is **new**.
+Each item gets one label; with no records yet, **new**.
 
 - **new**: its own record
 - **duplicate of** a record that already says it: nothing
@@ -62,7 +62,7 @@ Reply with this, filled in from `work.md`.
 
 ```
 **Captured**
-- <each new requirement, in their words>
+- <each new requirement, in their words> (<its priority; omit with none>)
   - Example: <one they gave; omit when none>
   - To confirm: <one you added; omit when none>
 - Flow, <name>: 1. <step> 2. <step, with its branches>
@@ -84,7 +84,7 @@ Reply with this, filled in from `work.md`.
 These are drafts. Say "confirm", or tell me what to change.
 ```
 
-Done when: the reply is the filled template, asking every Question that can be answered now. End the turn.
+Done when: the reply is the filled template, asking every Question answerable now. End the turn.
 
 ## 8. Confirm
 

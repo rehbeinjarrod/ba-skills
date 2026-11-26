@@ -1,6 +1,6 @@
 ---
 name: slice-requirements
-description: Slices requirements into features, every requirement to deliver in one, and makes the handover brief engineers start from, one a feature. Use when the person wants the work broken into features, wants something to hand to engineers, says a feature is too big, or names a tracker item for a brief. Something for approvers is prepare-signoff-brief.
+description: Slices requirements into features, one at a time or all at once, holds a requirement back from a feature, and makes the handover brief engineers start from, one a feature. Use first, before editing `work.md`, when the person wants the work broken into features or a feature cut, wants a requirement taken out of what is being built, moved to another feature or held back, wants something to hand to engineers, says a feature is too big, or names a tracker item for a brief. Something for approvers is prepare-signoff-brief.
 ---
 
 First read [RULES.md](../../shared/RULES.md).
@@ -15,19 +15,21 @@ Done when: you hold each requirement's statement and `Feature` line, each Flow's
 
 ## 2. Group the requirements
 
+Group what the person asked for: the feature they named, else every requirement.
+
 A feature is fit to hand over when all three hold:
 
 - it runs from something that happens in the business to a result a named person gets
 - built, it could be shown working on its own with one of its examples
 - showing it needs no feature still unbuilt
 
-Start from the names on `Feature` lines. A requirement that holds for two features goes in both. A feature too big is sliced the same way: its parts replace it.
+Start from the names on `Feature` lines. A feature too big is sliced the same way: its parts replace it.
 
-Done when: every requirement is in a feature whose `Starts when` and `Ends when` the records fill, or on a "left out" list with its reason.
+Done when: each feature asked for has `Starts when` and `Ends when` the records fill. Other requirements wait.
 
 ## 3. Write the drafts
 
-Run `python3 <skill folder>/../../helper/ba.py check --shape feature`. At the end of `work.md`, write each feature in that shape as a draft, with the Flow steps it delivers. A part gets `- Sliced from: <the feature it replaces>`. Set each requirement's `- Feature:` line to its features. A requirement on your "left out" list gets `- Feature: none (<its reason>)`.
+Run `python3 <skill folder>/../../helper/ba.py check --shape feature`. Write each feature in that shape as a draft, with the Flow steps it delivers. A part gets `- Sliced from: <the feature it replaces>`. Set each requirement's `- Feature:` line to its features.
 
 Run `python3 <skill folder>/../../helper/ba.py check --fix` and do each fix it states.
 
@@ -35,7 +37,7 @@ Done when: it reports no finding.
 
 ## 4. Show the proposal
 
-Run `python3 <skill folder>/../../helper/ba.py status`. Reply with this, filled from it and `work.md`.
+Run `python3 <skill folder>/../../helper/ba.py status`. Reply with this, filled from it and the records.
 
 ```
 **Features proposed**
@@ -48,9 +50,8 @@ Run `python3 <skill folder>/../../helper/ba.py status`. Reply with this, filled 
 - Flow steps: <each step it delivers; omit with no flow>
 
 **Coverage**
-- <its `In a feature` line>
-- Left out: <requirement>, because <reason> <omit when none>
-- Replaced by its parts: <the feature sliced> <omit when none>
+- <its `In a feature` line, and each line under it>
+- Replaced by its parts: <the feature sliced; omit when none>
 
 **Reads like a choice about how to build** <three at most; omit when none>
 - <requirement> says "<that part of its statement>".
@@ -59,15 +60,15 @@ Run `python3 <skill folder>/../../helper/ba.py status`. Reply with this, filled 
   3. Could a subject expert confirm it in the business's own words? <your yes or no>
   A "no" makes it the engineers' call. Shall I move "<the matter it settles>" out of the statement, to left to engineering?
 
-These are drafts. Say "confirm", or tell me what to regroup or rename.
+These are drafts. Say "confirm", or tell me what to regroup, rename or hold back.
 ```
 
 Done when: the reply is the filled template. End the turn.
 
 ## 5. Confirm
 
-1. Regroup or rename as the person said. Done when: the Feature records and `Feature` lines say it.
+1. Regroup, rename or hold back as the person said. A requirement they take out for now is held back: add the two `Held back` lines `check --shape requirement` shows, the reason in their words. Done when: the records say it.
 2. For each part they agreed to move: cut it from the `Statement`, and add the matter it settles as an item under `### Left to engineering`, the last heading of that requirement. Done when: the statement still reads as a sentence.
 3. Set `Status: confirmed` on each feature accepted, and `Status: withdrawn` on a feature its parts replace; one with work logged against its `Tracker` item stays as it is. Done when: no accepted feature is a draft and no other record's status changed.
 4. Do step 3's check. Done when: step 3 is.
-5. Tell the person what is confirmed and what is open; offer the handover briefs. Done when: the reply names all three.
+5. Tell the person what is confirmed, held back and open; offer the handover briefs. Done when: the reply names each.

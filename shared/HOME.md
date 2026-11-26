@@ -1,6 +1,6 @@
 # The home for a Work's records
 
-Each Work has one home, chosen once: a folder, or a Confluence page in the person's personal space. You always work on `work.md` in the current folder. A page only carries that one file from one session to the next, so with a page as home every record stays in `work.md`.
+Each Work has one home, chosen once: a folder, or a Confluence page in the person's personal space. You always work on `work.md` in the current folder. A page only carries that one file from one session to the next, so with a page as home every record stays in `work.md`. A Work whose records are filed by feature in `records/` has a folder as its home.
 
 ## A Confluence page
 
