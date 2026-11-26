@@ -147,3 +147,8 @@ Sentences from the records are never changed by this list.
 | intended | Intended |  |
 | accidental | Accidental |  |
 | defect | Defect |  |
+| Stated in full in | Each is stated in full in |  |
+| Not yet sent to read in full | Each is stated in full in the sign-off brief, which has not been sent yet. Ask the business analyst for it. |  |
+| Held back | Held back from this Feature for now. Each reason is as it was given |  |
+| Held back because | Reason |  |
+| Held back by | Said by |  |

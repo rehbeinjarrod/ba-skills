@@ -20,3 +20,4 @@
 - Size never holds up a first draft. Small: one approver, one team, no regulation or contract, no data to move. Medium: any of those four is a yes. Large: the goal needs several features.
 - A defect is something a system does that departs from a requirement already agreed. Called a defect with no such requirement, it is recorded as a question (what should happen?) and gets its verdict once that is agreed.
 - Confirmed is your word. Approved is an approver's.
+- A priority you give (must, should, could, won't) is kept on its requirement and shown in the draft. Something asked for that will not be delivered is still a requirement, with priority won't and who decided.

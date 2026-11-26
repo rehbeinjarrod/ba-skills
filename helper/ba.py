@@ -80,6 +80,7 @@ def _problem(code, record, line, **params):
     params   what the wording used, kept for callers: key, value, allowed, lines, first
     """
     level, message, fix = CATALOGUE[code]
+    level = params.pop("level", level)  # a caller may say a kind as information where nothing is to be fixed (ADR 0045)
     p = {"code": code, "level": level, "file": record["file"], "line": line,
          "kind": record.get("kind", ""), "name": record.get("name", "")}
     p.update(params)
@@ -125,7 +126,7 @@ The parser never drops a line. A line it does not understand stays in `files`
 and is listed in its record's "other".
 
 Owns the tables of kinds and fields, _parse_file, and the small readers of a record (value, status_of,
-feature_named, to_deliver). Must not know: folders on disk (workspace), cross-record checks (validate),
+feature_named, to_deliver, belongs_to: what belongs to a Feature, grouping_of: where a requirement stands). Must not know: folders on disk (workspace), cross-record checks (validate),
 or anything about briefs and baselines.
 """
 
@@ -147,7 +148,7 @@ SEVERAL = "several features"
 FIELDS = {
     "work": ("id", "status", "withdrawn because", "goal", "tracker", "house", "home", "sign-off form", "approvers") + SIGNALS + (SEVERAL,),
     "requirement": ("id", "category", "feature", "status", "withdrawn because", "priority", "priority notes", "statement", "source",
-                    "why", "measure", "threshold"),
+                    "why", "measure", "threshold", "held back because", "held back by"),
     "question": ("id", "raised by", "raised", "asked", "context", "about", "answer", "answered by", "working answer", "owner"),
     "flow": ("id", "status", "withdrawn because", "source", "overview", "trigger"),
     "feature": ("id", "status", "withdrawn because", "intent", "sliced from", "flow", "tracker", "business item"),
@@ -194,13 +195,16 @@ _APPROVAL = re.compile(r"^(?P<name>[^:]+?)\s*:\s*(?P<decision>approved|changes a
                        r"\s*(?:,\s*[\"\u201c](?P<words>.*?)[\"\u201d])?\s*$", re.I)
 # One sending, as the note gives it (ADR 0026): the signoff is a page, a handover or business brief is an item.
 _PUBLISHED = re.compile(
-    r"^(?P<face>signoff|scope|delivery|(?:handover|business)\s+\S+)\s*:\s*(?:page\s+(?P<page>\d+)\s*,\s*version\s+(?P<version>\d+)|"
+    r"^(?P<face>signoff|scope|delivery|(?:handover|business|summary)\s+\S+)\s*:\s*(?:page\s+(?P<page>\d+)\s*,\s*version\s+(?P<version>\d+)|"
     r"item\s+(?P<item>[A-Za-z][A-Za-z0-9]*-\d+))\s*,\s*(?P<date>[^,]+?)\s*,\s*"
     r"(?P<from>records version\s+[0-9a-f]{8}|baseline\s+[A-Za-z0-9][A-Za-z0-9._-]*)\s*,\s*(?P<link>https?://\S+)\s*$", re.I)
 PUBLISHED_FORM = "- signoff: page <ID>, version <number>, <date>, records version <8 characters>, <link>   (scope and delivery are " \
                  "written the same way, with their own name in place of signoff)   or   " \
-                 "- handover <Feature ID>: item <key>, <date>, records version <8 characters> (or baseline <name>), <link>"
+                 "- handover <Feature ID>: item <key>, <date>, records version <8 characters> (or baseline <name>), <link>   (a feature " \
+                 "summary attached to that item is written the same way, with summary in place of handover)"
 _NO_FEATURE = re.compile(r"^none\s*(?:\((.*)\))?$", re.I)
+# The reserved word of a `Feature` line that says a requirement holds for the whole work (ADR 0044), as `none` says it is in no feature.
+ALL = "all"
 # A handle: lower-case words joined by hyphens, or an ID's letters and a hyphen before words that are not a number
 # (`Q-goal`): the person meant an ID and the number was never given.
 _HANDLE = re.compile(r"^(?:(?:W|R|Q|F|FE|OB)-(?!\d+$)[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*|[a-z][a-z0-9]*(?:-[a-z0-9]+)*)$")
@@ -538,8 +542,44 @@ def left_out_of_features(req):
 
 
 def feature_parts(req):
-    """The parts of a requirement's `Feature` line that each name a Feature: none when the line says `none`."""
-    return [] if left_out_of_features(req) is not None else _parts(value(req, "feature"))
+    """The parts of a requirement's `Feature` line that each name a Feature: none when the line says `none`, and never
+    the reserved word `all` (ADR 0044)."""
+    return [] if left_out_of_features(req) is not None else [p for p in _parts(value(req, "feature")) if p.lower() != ALL]
+
+
+def holds_for_all(req):
+    """True when the requirement's `Feature` line says `all`: it holds for the whole work (ADR 0044). `all` may stand
+    beside feature names; beside `none` it is not read."""
+    return left_out_of_features(req) is None and any(p.lower() == ALL for p in _parts(value(req, "feature")))
+
+
+def held_back(req):
+    """True for a requirement held back from its feature (ADR 0046): it has a `Held back because` line. It keeps its
+    `Feature` line and is still to deliver; no code reads the reason."""
+    return bool(value(req, "held back because"))
+
+
+def features_of(store, req):
+    """The Features that count (not withdrawn, not a kept original) named on the requirement's `Feature` line, in the
+    order written."""
+    out = []
+    for part in feature_parts(req):
+        f = feature_named(store["records"], part)
+        if f is not None and status_of(f) != "withdrawn" and not kept_original(store, f) and not any(f is x for x in out):
+            out.append(f)
+    return out
+
+
+def grouping_of(store, req):
+    """Where a requirement stands in the grouping into features (ADR 0044), the one definition `status` counts by:
+    'feature' when its `Feature` line names a Feature that counts, or 'held' when it does and the requirement is held
+    back from it (ADR 0046); else 'all' when the line says it holds for the whole
+    work; else 'none' when the line says it is deliberately in no feature; else 'not yet'."""
+    if features_of(store, req):
+        return "held" if held_back(req) else "feature"
+    if holds_for_all(req):
+        return "all"
+    return "none" if left_out_of_features(req) is not None else "not yet"
 
 
 def to_deliver(store):
@@ -547,6 +587,35 @@ def to_deliver(store):
     check, status and the ADRs use it. A baseline's 'in scope' is a different thing."""
     return [r for r in store["records"] if r["kind"] == "requirement" and status_of(r) == "confirmed"
             and value(r, "priority") != "wont"]
+
+
+def belongs_to(store, feature):
+    """What belongs to a Feature (ADR 0045), the one definition: the brief, its trace, `status` and the filing of
+    records by feature all ask here. A dict of lists, each in store order:
+
+      requirements  those whose `Feature` line names it, withdrawn ones too
+      flows         those its `Flow` line names
+      questions     those whose `About` names the Feature, one of those requirements that is not withdrawn, or one of
+                    those flows
+      observed      the Observed records whose `About` does the same
+
+    A question about the Work, or about nothing, belongs to the whole work and to no Feature (whole_work_questions)."""
+    recs = store["records"]
+    reqs = [r for r in recs if r["kind"] == "requirement" and any(feature_named(recs, p) is feature for p in feature_parts(r))]
+    by = {}
+    for r in recs:
+        if r["id"]:
+            by.setdefault(r["id"].lower(), r)
+    flows = [by[x.lower()] for x in feature["flows"] if x.lower() in by and by[x.lower()]["kind"] == "flow"]
+    mine = {r["id"].lower() for r in [feature] + [r for r in reqs if status_of(r) != "withdrawn"] + flows if r["id"]}
+    about = lambda kind: [r for r in recs if r["kind"] == kind and {a.lower() for a in r["about"]} & mine]
+    return {"requirements": reqs, "flows": flows, "questions": about("question"), "observed": about("observed")}
+
+
+def whole_work_questions(store):
+    """The Questions that belong to the whole work (ADR 0045): about the Work alone, or about nothing."""
+    work = {r["id"].lower() for r in store["records"] if r["kind"] == "work" and r["id"]}
+    return [q for q in store["records"] if q["kind"] == "question" and {a.lower() for a in q["about"]} <= work]
 
 
 # ==== helper/src/forecast.py ================================================
@@ -860,7 +929,36 @@ def read_workspace(folder):
                 sources.append((name, f.read()))
         except UnicodeDecodeError:
             raise Unreadable(os.path.join(folder, name)) from None
-    return read_store(sources, folder)
+    store = read_store(sources, folder)
+    store["records"] = filed_order(store["records"]) if len(sources) > 1 else by_id_within_kind(store["records"])
+    return store
+
+
+def by_id_within_kind(records):
+    """The records of a one-file workspace as they are written, except that the records of one kind that have a numbered ID
+    stand in the order of those numbers, in the places records of that kind hold (ADR 0049). A file written in ID order,
+    which is nearly every file, is read as written. So a table in a brief lists its rows the same way before the records
+    are filed by feature and after."""
+    out, slots = list(records), {}
+    for i, r in enumerate(records):
+        if _ASSIGNED.match(r["id"] or ""):
+            slots.setdefault(r["kind"], []).append(i)
+    for kind, at in slots.items():
+        for i, r in zip(at, sorted((records[i] for i in at), key=lambda r: int(r["id"].split("-")[1]))):
+            out[i] = r
+    return out
+
+
+def filed_order(records):
+    """The records of a workspace that has files in records/, in one order whichever file each is in (ADR 0049): the Work,
+    then each kind in turn, each by the number of its ID; a record with no number keeps its reading order after those.
+    So a brief, a list and the records version do not move when a record is filed. A one-file workspace is read in the
+    order it is written, as it always was."""
+    def key(item):
+        i, r = item
+        m = _ASSIGNED.match(r["id"] or "")
+        return (r["kind"] != "work", KINDS.index(r["kind"]), 0 if m else 1, int(r["id"].split("-")[1]) if m else 0, i)
+    return [r for _, r in sorted(enumerate(records), key=key)]
 
 
 def _bytes(path):
@@ -912,6 +1010,17 @@ def _check_fields(rec, problems):
             problems.append(_problem("not-given", rec, rec["empty"].get(key, rec["line"]), key=label(key),
                                      after=rec["line"], add="- %s: %s" % (label(key), PLACEHOLDER[key]),
                                      unknown="the intent" if key == "intent" else "the name"))
+    if kind == "requirement" and "held back because" in rec["fields"] and "held back by" not in rec["fields"]:
+        problems.append(_problem("not-given", rec, rec["fields"]["held back because"]["line"], key="Held back by",
+                                 after=rec["fields"]["held back because"]["line"], add="- Held back by: <their name, and the date>",
+                                 unknown="who said it is held back"))
+    if kind == "requirement" and "held back by" in rec["fields"] and "held back because" not in rec["fields"]:
+        line = rec["fields"]["held back by"]["line"]
+        problems.append(_problem(
+            "bad-value", rec, line, key="Held back by", value=rec["fields"]["held back by"]["value"], allowed=[],
+            why="It says who held this requirement back, and no line says why.",
+            says="In %s, add before line %d: - Held back because: <the person's own sentence, copied as they said it>   If it is not "
+                 "held back, delete line %d." % (rec["file"], line, line)))
     for key, field in sorted(rec["fields"].items(), key=lambda kv: kv[1]["line"]):
         if key in FIXED and field["value"] not in FIXED[key]:
             allowed = _names(FIXED[key])
@@ -1168,6 +1277,16 @@ def _check_features(records, problems):
         else:
             live[key] = f
     for f in features:
+        if ALL in (f["name"].strip().lower(), (f["id"] or "").lower()):  # `all` on a Feature line means the whole work (ADR 0044)
+            line = f["fields"]["id"]["line"] if (f["id"] or "").lower() == ALL else f["line"]
+            problems.append(_problem(
+                "ambiguous", f, line, key="Name", value=ALL,
+                what="This Feature is called 'all', and '- Feature: all' on a requirement says it holds for the whole work, "
+                     "so a Feature line cannot name this Feature.",
+                one="rename the Feature: change line %d so it is not 'all'." % line,
+                two="name it by its ID: write '- Feature: <this Feature's ID>' on each requirement that belongs to it%s."
+                    % ("" if _ASSIGNED.match(f["id"] or "") else " (run %s first so it has one)" % _fixcmd())))
+    for f in features:
         flows = []
         known = sorted(r["id"] for r in records if r["kind"] == "flow" and r["id"])
         for ref in f["flows"]:
@@ -1261,6 +1380,7 @@ SHAPES = {
 ## Work: Leave booking for shift staff
 
 <!-- One per workspace, in work.md. Leave out any line you have nothing for. The last five lines take yes or no. -->
+<!-- "### Out of scope" is for what the work does not touch: an area, a system, a group of people. Behaviour someone asked for and will not get is a Requirement with "- Priority: wont", not a line here. -->
 <!-- Fixed values. Status: draft | confirmed | withdrawn. The five size lines take yes | no:
 More than one approver: more than one person must say yes before this goes ahead.
 More than one team: people outside the requester's own team must change how they work.
@@ -1305,13 +1425,21 @@ A withdrawn record is kept, and may say why on a "- Withdrawn because: <reason>"
 Category is an optional line, "- Category: <value>", added only when the material makes it plain. Usual values:
 functional | non-functional | business | compliance | transition, or the house's own.
 Feature is an optional line, "- Feature: <name>": add it only when the material itself groups requirements under a
-named capability, in the material's words.
-Other lines, only when the person said so: Priority (must | should | could | wont), Priority notes, and for a
-non-functional need Measure and Threshold.
-Each example is a concrete case: a named person and numbers. It starts "said:" (a person gave it) or
-"proposed:" (you suggested it). -->
+named capability, in the material's words. "- Feature: all" says the requirement holds for the whole work, and
+"- Feature: none (<reason>)" that it will never be in any feature. With no line it is not yet in a feature, which is no fault.
+A requirement a person takes out of a feature, or keeps out of it, for now is held back: whether or not it was in the feature
+yet, name that feature on its Feature line and add two lines: "- Held back because: <the person's own sentence, copied as they said it>" and
+"- Held back by: <their name, and the date>". The name is the one they give, else the name on the Work's "Business analyst"
+line. With neither, leave that line out and ask them their name; when they give it, write it there and add
+"- Business analyst: <their name>" under the Work's "### People", so it is asked once. Deleting both lines puts it back.
+Priority (must | should | could | wont) is the value the material gives this requirement, and each requirement has its
+own: copy the one given, and with none given leave the line out. Something asked for that will not be delivered is still a
+Requirement, with "- Priority: wont" and a Priority notes line saying who decided and when (the second example).
+Other lines, only when the material has them: Priority notes, and for a non-functional need Measure and Threshold.
+Each example is a concrete case: a named person and numbers. It starts "said:" (a person gave it) or "proposed:" (you suggested it). -->
 - ID: overlap-warning
 - Status: draft
+- Priority: must
 - Statement: As a shift manager I want a warning when a leave request overlaps approved leave on my ward so that I do not leave a shift short.
 - Source: Dana Whitlock, workshop 3 November
 - Why: Two night shifts ran short last quarter because nobody noticed overlapping leave.
@@ -1320,6 +1448,15 @@ Each example is a concrete case: a named person and numbers. It starts "said:" (
 
 - said: Ward 4 has 6 nurses and needs 4 on each night shift. Aisha is approved for 12 December, and Ben asks for the same night. Dana, the ward manager, sees a warning that names Aisha.
 - proposed: Chen on Ward 6 asks for 12 December, the night Aisha is off on Ward 4. Dana sees no warning, because Chen works on another ward.
+
+## Requirement: Leave booked by text message
+
+- ID: text-booking
+- Status: draft
+- Priority: wont
+- Priority notes: Maria Okafor decided against it on 3 November: every member of staff already has the rostering app.
+- Statement: As a member of shift staff I want to book leave by text message so that I do not need the rostering app.
+- Source: Dana Whitlock, workshop 3 November
 """,
     "question": """\
 ## Question: Can leave be booked in half days?
@@ -1613,7 +1750,9 @@ class House:
     def line(self):
         if not self.own:
             return "the shipped house"
-        return "%s (its own: %s; the rest are the shipped house)" % (self.ref, ", ".join(self.own_files()) or "nothing")
+        unread = [p["message"].split(" is not read")[0] for p in _unread(self)]
+        return "%s (its own: %s; the rest are the shipped house%s)" % (
+            self.ref, ", ".join(self.own_files()) or "nothing", "; not read: %s, see check" % ", ".join(unread) if unread else "")
 
 
 def _open(path):
@@ -2131,18 +2270,14 @@ class _HandoverBrief(_Brief):
         super().__init__(store, words, feature)
         self.feature = feature
         recs = self.all
-        by = {}
-        for r in recs:
-            if r["id"]:
-                by.setdefault(r["id"].lower(), r)
         rank = lambda r: PRIORITY_ORDER.index(value(r, "priority")) if value(r, "priority") in PRIORITY_ORDER else 4
+        mine = belongs_to(store, feature)  # the one definition of what belongs to a Feature (ADR 0045)
         # Every requirement that names the feature, withdrawn ones too (only the trace shows those).
-        self.of = [r for r in recs if r["kind"] == "requirement"
-                   and any(feature_named(recs, p) is feature for p in feature_parts(r))]
-        self.reqs = sorted([r for r in self.of if status_of(r) != "withdrawn"], key=rank)
-        self.flows = [by[x.lower()] for x in feature["flows"] if x.lower() in by and by[x.lower()]["kind"] == "flow"]
-        mine = {r["id"].lower() for r in self.of + self.flows + [feature, self.work] if r["id"]}
-        self.fq = [q for q in recs if q["kind"] == "question" and (not q["about"] or {a.lower() for a in q["about"]} & mine)]
+        self.of = mine["requirements"]
+        # A requirement held back from this Feature is in none of its tables: it is listed with its reason (ADR 0046).
+        self.held = [r for r in self.of if status_of(r) != "withdrawn" and held_back(r)]
+        self.reqs = sorted([r for r in self.of if status_of(r) != "withdrawn" and not held_back(r)], key=rank)
+        self.flows, self.fq, self.observed = mine["flows"], mine["questions"], mine["observed"]
         self.listed = [i["text"].lower() for i in feature["flow steps"]]
 
     def block(self, kind, depth):
@@ -2177,7 +2312,7 @@ class _HandoverBrief(_Brief):
             if a and approval_stands(self.store, a):
                 there = approved_baseline(self.store, a)  # an approval of earlier records says which baseline it was of
                 shown.append("%s: %s, %s%s" % (_esc(n), L(a["decision"]), _esc(a["date"]), ", %s %s" % (
-                    L("Baseline"), _esc(there["name"])) if there and _approved_version(self.store, a) != version else ""))
+                    L("Baseline"), _esc(there["name"])) if there and not same_version(self.store, _approved_version(self.store, a)) else ""))
             else:
                 shown.append("%s: %s" % (_esc(n), L("Not yet approved")))
         rows = [(L("Feature"), _esc(f["id"])), (L("Status"), self.fixed("status", f)), (L("Sliced from"), sliced),
@@ -2265,6 +2400,40 @@ class _HandoverBrief(_Brief):
     def h_plain_assumptions(self, depth):
         return ["- " + _esc(a["text"]) for a in self.work["assumptions"]] or [self.L("None recorded") + "."]
 
+    def h_held_back(self, depth):
+        """The requirements held back from this Feature (ADR 0046): the ID and name, then the reason and who gave it, both
+        exactly as written on the record. Nothing when none is held back."""
+        L = self.L
+        if not self.held:
+            return []
+        return ["%s:" % L("Held back"), ""] + self.table(
+            [L("ID"), L("Requirement"), L("Held back because"), L("Held back by")],
+            [[r["id"], _esc(r["name"]), _esc(value(r, "held back because")), _esc(value(r, "held back by"))] for r in self.held])
+
+    def whole_work(self):
+        """The requirements that bear on every Feature (ADR 0045): not withdrawn, their `Feature` line says `all`, and
+        they do not also name this Feature (those are printed in full)."""
+        return [r for r in self.all if r["kind"] == "requirement" and status_of(r) != "withdrawn" and holds_for_all(r)
+                and not any(r is x for x in self.of)]
+
+    def h_whole_work(self, depth):
+        """What bears on every Feature, by name and never in full (ADR 0045): the requirements whose `Feature` line says
+        `all`, one line a category with its count, then where a reader can open them in full: the link of the sign-off
+        brief and the Scope brief as last sent, from the Work's `### Published`. With neither sent it says so and names
+        nobody's folder: a brief never points its reader at a private place (ADR 0014). Nothing else recorded against the
+        whole work is here: a question or an assumption that does not name this Feature does not bear on it. So a brief's
+        length follows its feature and not the size of the Work."""
+        L, groups = self.L, {}
+        for r in self.whole_work():
+            groups.setdefault(value(r, "category").lower(), []).append(r)
+        if not groups:
+            return []
+        out = ["- %s (%d): %s" % (_esc(self.words.show(c)) if c else L("Requirements"), len(rs), "; ".join(
+            _esc(r["name"]) + (" (%s)" % L("draft") if self.draft(r) else "") for r in rs)) for c, rs in groups.items()]
+        sent = last_sent(self.work)
+        links = ["%s, %s" % (L(FACES[k]["word"]), sent[k]["link"]) for k in ("signoff", "scope") if k in sent]
+        return out + ["", "%s: %s" % (L("Stated in full in"), "; ".join(links)) if links else L("Not yet sent to read in full")]
+
     def h_feature_questions(self, depth):
         L, rows = self.L, []
         open_ = [q for q in self.fq if not value(q, "answer")]
@@ -2278,9 +2447,8 @@ class _HandoverBrief(_Brief):
         """What the present system was seen to do and what the business has said of it, for this feature (ADR 0035): the
         Observed records, not withdrawn, whose `About` names the Feature, one of its requirements or one of its Flows.
         Unconfirmed first, then the rest. `Seen in` is left out: the brief carries no repository detail."""
-        L, by = self.L, {}
-        mine = {x["id"].lower() for x in [self.feature] + self.reqs + self.flows if x["id"]}
-        found = [r for r in self.all if r["kind"] == "observed" and standing_of(r) != "withdrawn" and {a.lower() for a in r["about"]} & mine]
+        L = self.L
+        found = [r for r in self.observed if standing_of(r) != "withdrawn"]
         reqs = {x["id"].lower(): x for x in self.all if x["kind"] == "requirement" and x["id"]}
         rows = []
         for r in sorted(found, key=lambda r: standing_of(r) != "unconfirmed"):
@@ -2477,8 +2645,14 @@ BLOCKS = ("people", "assumptions", "out of scope", "requirements", "requirement 
 # The handover brief (ADR 0022, 0035): twelve jobs, fourteen block kinds of its own beside `people` and `out of scope`.
 HANDOVER_JOBS = ("version", "intent", "words", "actors", "rules", "examples", "flow", "scope", "open", "yours", "ask", "trace")
 HANDOVER_BLOCKS = ("version", "glossary", "actors", "feature requirements", "measures", "examples", "feature flow",
-                   "decisions", "other features", "plain assumptions", "feature questions", "left to engineering",
+                   "decisions", "other features", "plain assumptions", "whole work", "held back", "feature questions", "left to engineering",
                    "feature trace", "observed", "people", "out of scope")
+# The blocks that slicing a Feature could make smaller: its own requirements, measures, examples, flow and what was left
+# to the engineers. The size finding counts these and nothing else (ADR 0045).
+HANDOVER_OWN = ("feature requirements", "measures", "examples", "feature flow", "left to engineering")
+# The feature summary (ADR 0048): a house's own thin document for the business going into build. Four jobs, and the
+# handover brief's blocks. No template for it is shipped: a house that has none has no such document.
+SUMMARY_JOBS = ("summary", "rules", "scope", "open")
 # The Scope brief (ADR 0029): nine jobs, five block kinds of its own beside six the sign-off brief has.
 SCOPE_JOBS = ("goal", "needs", "features", "scope", "people", "limits", "open", "agree", "trace")
 SCOPE_NEW = ("top requirements", "features", "feature map", "stakeholders", "tolerances")
@@ -2531,7 +2705,8 @@ def _delivery_needs(store):
 #   needs          a function from a store to None, or the sentence that says why the face cannot be made (it is then not
 #                  written and bundle exits 2); with `baselines` False, it is made from the working records only
 #   apart          the block kinds built from a section the records version leaves out, so a change there does not change
-#                  the version: a brief that differs only inside them is behind, and `check` says to make it again
+#                  the version: a brief that differs only inside them is behind, and `check` says to make it again, in the
+#                  words of `behind`: (what is behind, what to do, with %s for the command)
 #   max_chars      the size past which it is too large to hand over, or None
 #   ids_why        what check says when a passage names a record by its ID
 #   form_hint      what check adds when the brief has no stamp; no_template, no_template_fix and
@@ -2553,19 +2728,45 @@ FACES = {
     },
     "handover": {
         "name": "handover", "title": "handover brief", "word": "Handover brief",
-        "apart": (), "needs": None, "baselines": True, "brief": _HandoverBrief, "for": "feature", "usage": "bundle handover",
+        "apart": ("whole work",), "needs": None,
+        "behind": ("Where this brief says the whole work's requirements can be read is behind the Work's '### Published', or was changed by hand",
+                   "That line is ba's to write, from what was last sent; do not edit it in the brief. Run: %s   It writes the line "
+                   "again and carries the passages you wrote into it."), "baselines": True, "brief": _HandoverBrief, "for": "feature", "usage": "bundle handover",
         "target": " <feature>",
         "file": "faces/handover-{id}.md", "on_disk": re.compile(r"^handover-(.+)\.md$"),
         "template": "handover.md", "templates": re.compile(r"^handover\.md$"), "forms": False,
         "jobs": HANDOVER_JOBS, "blocks": HANDOVER_BLOCKS,
         "values": {"work": WORK_VALUES, "feature": FEATURE_VALUES},
-        "lints": ("size",), "max_chars": HANDOVER_MAX_CHARS,
+        "lints": ("size",), "max_chars": HANDOVER_MAX_CHARS, "own": HANDOVER_OWN,
         "ids_why": "Record IDs belong in the tables ba makes from the records. A passage names a record by its name.",
         "form_hint": "",
         "no_template": "there is no template '{name}' in the house or the shipped house.",
         "no_template_fix": "add it to the house's templates/ folder.",
         "missing_template_fix": "Add a template with that name to the house's templates/ folder, or make the brief "
                                 "again with the shipped house: {again}",
+    },
+    "summary": {
+        "name": "summary", "title": "feature summary", "word": "Feature summary",
+        "apart": ("whole work",), "needs": None,
+        "behind": ("Where this summary says the whole work's requirements can be read is behind the Work's '### Published', or was changed by hand",
+                   "That line is ba's to write, from what was last sent; do not edit it in the summary. Run: %s   It writes the line "
+                   "again and carries the passages you wrote into it."),
+        "baselines": True, "brief": _HandoverBrief, "for": "feature", "usage": "bundle summary", "target": " <feature>",
+        "file": "faces/summary-{id}.md", "on_disk": re.compile(r"^summary-(.+)\.md$"),
+        "template": "summary.md", "templates": re.compile(r"^summary\.md$"), "forms": False,
+        "jobs": SUMMARY_JOBS, "blocks": HANDOVER_BLOCKS, "values": {"work": WORK_VALUES, "feature": FEATURE_VALUES},
+        # A section of a house's thin document with nothing to show keeps its heading and says so (ADR 0048): the house's
+        # headings are always the same. Take this line out and an empty section is left out, as in every other face.
+        "keep_empty": True,
+        "lints": (), "max_chars": None,
+        "ids_why": "Record IDs belong in the tables ba makes from the records. A passage names a record by its name.",
+        "form_hint": "",
+        "no_template": "there is no template '{name}' in the house, and none is shipped: the feature summary is a house's own "
+                       "document, for the business going into build.",
+        "no_template_fix": "run the adopt-house skill with the document your organisation uses for it, which adds templates/summary.md "
+                           "to the house. The engineers' brief needs none: {ba} bundle handover <feature>",
+        "missing_template_fix": "Add a template with that name to the house's templates/ folder: the adopt-house skill drafts one "
+                                "from the document your organisation uses.",
     },
     "scope": {
         "name": "scope", "title": "scope brief", "word": "Scope brief",
@@ -2585,6 +2786,9 @@ FACES = {
     "delivery": {
         "name": "delivery", "title": "delivery plan", "word": "Delivery plan", "needs": _delivery_needs, "baselines": False,
         "apart": ("forecast summary", "forecast", "timeline", "delivery basis", "feature items"),
+        "behind": ("The forecast in this delivery plan is behind the Work's '### Delivery' and '### Actuals', or was changed by hand",
+                   "The forecast is ba's to write, from those two sections; do not edit it in the brief. Run: %s   It writes the "
+                   "forecast again and carries the passage you wrote into it. Read the passage again against the new dates."),
         "brief": _DeliveryBrief, "for": None, "usage": "bundle delivery", "target": "",
         "file": "faces/delivery.md", "on_disk": re.compile(r"^delivery\.md$"),
         "template": "delivery.md", "templates": re.compile(r"^delivery\.md$"), "forms": False,
@@ -2640,6 +2844,7 @@ def _expand(brief, face, record, words, template, here):
     (ADR 0018). Trace and approval are never empty.
     """
     problems, items, slots, sections, depth, i, omitted = [], [], [], [], 1, 0, {}
+    brief.sizes = {}  # {block kind: the characters it put into the face}, for the size lint (ADR 0045)
     work = shown_values(brief.work, face["values"]["work"])
     feature = shown_values(record, face["values"][face["for"]]) if record is not None else None
     feature_names = face["values"].get("feature")
@@ -2671,6 +2876,7 @@ def _expand(brief, face, record, words, template, here):
                 bad(n, "block", arg, face["blocks"], "{block: <one of %s>}" % ", ".join(face["blocks"]))
             else:
                 shown = brief.block(arg.lower(), depth)
+                brief.sizes[arg.lower()] = brief.sizes.get(arg.lower(), 0) + sum(len(t) + 1 for t in shown)
                 if sections:
                     sections[-1]["kinds"].append(arg.lower())
                 tag = "approval" if arg.lower() == "approval" else "apart" if arg.lower() in face["apart"] else "block"
@@ -2729,7 +2935,10 @@ def _expand(brief, face, record, words, template, here):
         sec = sections[k]
         if sec["blocks"] and not sec["shown"] and not sec["slots"]:
             end = sections[k + 1]["start"] if k + 1 < len(sections) else len(items)
-            del items[sec["start"]:end]
+            if face.get("keep_empty"):
+                items[end:end] = [("", "block"), (words.get("None recorded") + ".", "block"), ("", "block")]
+            else:
+                del items[sec["start"]:end]
     _slot_neighbours(items, slots, here, problems)
     return items, slots, sections, problems, omitted
 
@@ -2839,7 +3048,7 @@ def build_face(store, template, template_file, words, where=None, feature=None, 
                                          "slots": sum(x["slots"] for x in sections if x["job"] == j),
                                          "line": next((x["line"] for x in sections if x["job"] == j), 1)} for j in face["jobs"]},
                          "first": sections[0]["line"] if sections else 1},
-            "problems": problems, "version": version_of(store), "count": count, "stamp": stamp}
+            "problems": problems, "version": version_of(store), "count": count, "stamp": stamp, "sizes": dict(brief.sizes)}
 
 
 def _texts(lines):
@@ -2936,7 +3145,8 @@ def _made_before_where_it_lives(store, house, kind, name, record, face):
     # The lines stay, so the records version and the stamp stay the same; their values are blank, so the brief shows none.
     leave = lambda r: dict(r, fields={k: dict(v, value="") if k in LIVES_AT.get(r["kind"], ()) else v for k, v in r["fields"].items()})
     work = next((r for r in store["records"] if r["kind"] == "work"), None)
-    for who in ([record], [work], [record, work]):  # the Feature's lines, the Work's, or both, were written after
+    reqs = belongs_to(store, record)["requirements"] if record is not None and record["kind"] == "feature" else []
+    for who in ([record], [work], [record, work], reqs, reqs + [record, work]):  # the Feature's lines, the Work's, its requirements', or all
         who = [r for r in who if r is not None]
         plain = dict(store, records=[leave(r) if any(r is w for w in who) else r for r in store["records"]])
         mine = plain["records"][store["records"].index(record)] if record is not None else None
@@ -3036,6 +3246,8 @@ def _check_face(store, rel, text, house, option, kind, record=None):
                     what="Baseline '%s' does not hold this Feature, so the brief cannot be compared with it." % bname,
                     how="Make the brief from the working records instead, or from a baseline that holds it: %s"
                         % _face_cmd(kind, kind["on_disk"].match(os.path.basename(rel)).group(1), option))]
+    if not bname and version != version_of(store) and version == earlier_version(store):
+        return []  # made by an earlier release from these same records: `check` says so once, for all such briefs (ADR 0049)
     if version != version_of(store):
         return [_problem(
             "stale", here, face[-1][0], old=version, new=version_of(store),
@@ -3056,12 +3268,7 @@ def _check_face(store, rel, text, house, option, kind, record=None):
     contents, failure = _match_pieces(skeleton["pieces"], face)
     if failure and "apart" in skeleton["kinds"] and _only_apart_differs(skeleton, face):
         at = next((n for n, t in face if t == skeleton["approval heading"]), face[-1][0])
-        found.append(_problem(
-            "stale", here, at,
-            what="The forecast in this %s is behind the Work's '### Delivery' and '### Actuals', or was changed by hand" % kind["title"],
-            how="The forecast is ba's to write, from those two sections; do not edit it in the brief. Run: %s   It writes the "
-                "forecast again and carries the passage you wrote into it. Read the passage again against the new dates."
-                % again(name, bname)))
+        found.append(_problem("stale", here, at, what=kind["behind"][0], how=kind["behind"][1] % again(name, bname)))
     elif failure and _only_apart_differs(skeleton, face):
         at = next((n for n, t in face if t == skeleton["approval heading"]), face[-1][0])
         found.append(_problem(
@@ -3074,9 +3281,9 @@ def _check_face(store, rel, text, house, option, kind, record=None):
     elif failure and _made_before_where_it_lives(store, house, kind, name, record, face):
         found.append(_problem(
             "stale", here, face[-1][0],
-            what="A tracker item was recorded after this brief was made, and the brief shows it",
-            how="Run: %s   It writes the brief again with the item and carries the passages you wrote into it. Do not edit "
-                "the table by hand." % again(name, bname)))
+            what="A tracker item was recorded after this brief was made, or a requirement was held back, and the brief shows neither",
+            how="Run: %s   It writes the brief again as the records now stand and carries the passages you wrote into it. Do not "
+                "edit the tables by hand." % again(name, bname)))
     elif failure and _made_before_an_approval(store, house, kind, name, record, face):
         found.append(_problem(
             "stale", here, face[-1][0],
@@ -3124,20 +3331,34 @@ def _check_face(store, rel, text, house, option, kind, record=None):
     return found
 
 
-def _lint_size(kind, record, text, here, *_):
-    """A brief past the face's size is too large to hand over as one piece."""
-    size = len(text.replace("\r\n", "\n"))
+def _lint_size(kind, record, text, here, skeleton, *_):
+    """A Feature too large to hand over as one piece (ADR 0045). What is counted is what slicing could make smaller: the
+    characters of the blocks the descriptor calls the Feature's own. Past the face's size that is a finding whose fix is
+    to slice. When only the whole brief is past it, slicing would not help: one line of information names both figures
+    and the largest block that is not the Feature's own."""
+    size, sizes = len(text.replace("\r\n", "\n")), skeleton.get("sizes", {})
+    own = sum(n for k, n in sizes.items() if k in kind["own"])
+    shown = "%d characters, about %d tokens, of which %d characters are this Feature's own requirements, measures, examples and flow" % (
+        size, size // 4, own)
+    if own > kind["max_chars"]:
+        return [_problem(
+            "bad-value", here, 1, key="Size", value=shown, allowed=[],
+            why="A Feature's own part of a handover brief is kept under %d characters (about %d tokens), and this is over. It is too "
+                "large for engineers to specify as one piece, and cutting text would cut what the business said."
+                % (kind["max_chars"], kind["max_chars"] // 4), fixfile=record["file"], where="the Feature records and their requirements",
+            write="%s '%s' replaced by its parts: write each part as a new Feature record with '- Sliced from: %s', "
+                  "point each requirement's '- Feature:' line at the part it belongs to, set '- Status: withdrawn' on %s, "
+                  "then make a brief for each part with: %s bundle handover <the part's ID>%s"
+                  % (record["id"], record["name"], record["id"], record["id"], BA, FOLDER))]
     if size <= kind["max_chars"]:
         return []
+    rest = sorted(((n, k) for k, n in sizes.items() if k not in kind["own"]), reverse=True)
+    largest = " The largest block that is not the Feature's own is '%s', %d characters." % (rest[0][1], rest[0][0]) if rest else ""
     return [_problem(
-        "bad-value", here, 1, key="Size", value="%d characters, about %d tokens" % (size, size // 4), allowed=[],
-        why="A handover brief aims for 1,500 to 3,000 tokens (four characters to a token), and this is more than a "
-            "quarter over. It is too large for engineers to specify as one piece, and cutting text would cut what "
-            "the business said.", fixfile=record["file"], where="the Feature records and their requirements",
-        write="%s '%s' replaced by its parts: write each part as a new Feature record with '- Sliced from: %s', "
-              "point each requirement's '- Feature:' line at the part it belongs to, set '- Status: withdrawn' on %s, "
-              "then make a brief for each part with: %s bundle handover <the part's ID>%s"
-              % (record["id"], record["name"], record["id"], record["id"], BA, FOLDER))]
+        "bad-value", here, 1, level="info", key="Size", value=shown, allowed=[],
+        why="The whole brief is over %d characters, and the Feature's own part is not." % kind["max_chars"],
+        says="Nothing to do to the Feature: slicing it would not make this brief shorter.%s A house may leave a section out of "
+             "its handover template, with a reason." % largest)]
 
 
 _DATE_IN_TEXT = re.compile(r"\b(?:(\d{1,2}) (%s) (\d{4})|(\d{4})-(\d{2})-(\d{2}))\b" % "|".join(MONTHS))
@@ -3223,7 +3444,14 @@ def bundle(args):
             return 2
     skeleton = build_face(store, house.template(face, name).replace("\r\n", "\n"), name, house.words(), where=path,
                           feature=record, face=face, house=house)
-    code = _write_face(store, folder, house, problems, name, skeleton, face_file(face, record), CHECK, show=not args.outbox)
+    code = _write_face(store, folder, house, problems, name, skeleton, face_file(face, record), CHECK, show=not args.outbox, face=face)
+    if code == 0 and face is FACES["handover"] and has_summary(house):
+        # A house with a template for the feature summary gets it made beside the engineers' brief (ADR 0048).
+        other = FACES["summary"]
+        sk = build_face(store, house.template(other, other["template"]).replace("\r\n", "\n"), other["template"], house.words(),
+                        where=house.where("templates/" + other["template"]), feature=record, face=other, house=house)
+        _write_face(store, folder, house, [], other["template"], sk, face_file(other, record), CHECK, show=not args.outbox, face=other,
+                    second=True)
     if kept and code == 0:
         print("Made from baseline %s, as the brief in faces/ was." % kept)
     return send(args, got, face, again) if args.outbox and code == 0 else code
@@ -3254,6 +3482,13 @@ def _bundle_target(args, face):
     go on."""
     command = "%s %s" % (BA, face["usage"])
     folder = find_workspace(args.folder)
+    if folder is None and args.folder and find_workspace(None):
+        # A folder was named that holds no records, and the records are here: say so, so nobody copies them there.
+        print("ba bundle: '%s' holds no work.md, so it is not where the records are, and nothing was written. The records are in "
+              "%s. Fix: run the command without a folder: %s%s" % (
+                  args.folder, find_workspace(None), command, " " + shlex.quote(args.feature) if getattr(args, "feature", None) else ""),
+              file=sys.stderr)
+        return None, 2
     if folder is None:
         where = _no_workspace(args.folder)
         print("No work.md %s, so there is nothing to make a brief from. Fix: create work.md with a "
@@ -3282,7 +3517,7 @@ def _bundle_target(args, face):
     if name is None:
         line = (", or change line %d of work.md to '- Sign-off form: <one of those>'"
                 % work["fields"]["sign-off form"]["line"]) if not args.form and form else ""
-        print("ba bundle: %s Fix: %s" % (path, face["no_template_fix"].format(line=line)), file=sys.stderr)
+        print("ba bundle: %s Fix: %s" % (path, face["no_template_fix"].format(line=line, ba=BA)), file=sys.stderr)
         return None, 2
     return (store, folder, record, house, problems, name, path), 0
 
@@ -3367,8 +3602,23 @@ def _earlier_brief(target):
         return None
 
 
-def _write_face(store, folder, house, problems, name, skeleton, rel, check_cmd, show=True):
-    """Write a brief to faces/, carrying the passages of an earlier one, and say what was done."""
+def has_summary(house):
+    """True when the house holds its own template for the feature summary: only then is one made (ADR 0048)."""
+    return bool(house.templates(FACES["summary"], own_only=True))
+
+
+def _whose_template(house, face, name):
+    """How bundle says whose template a brief was made from, so a house sees at once when its own was not used."""
+    if not house.own:
+        return "the shipped template %s" % name
+    if name in house.templates(face, own_only=True):
+        return "the house's template %s (house: %s)" % (name, house.own.path)
+    return "the shipped template %s (this house has none of its own)" % name
+
+
+def _write_face(store, folder, house, problems, name, skeleton, rel, check_cmd, show=True, face=None, second=False):
+    """Write a brief to faces/, carrying the passages of an earlier one, and say what was done. `second`: it is made
+    beside another brief by the same command, so the lines about the workspace and the records are not said twice."""
     problems += skeleton["problems"]
     target = os.path.join(folder, *rel.split("/"))
     earlier = _earlier_brief(target)
@@ -3383,8 +3633,8 @@ def _write_face(store, folder, house, problems, name, skeleton, rel, check_cmd, 
             f.write(text)
     else:
         same = "%s was already up to date with the records." % rel
-    out = ["Workspace: " + folder, same or "Wrote %s from the template %s (%s)." % (
-        rel, name, "house: " + house.own.path if house.own else "shipped house")]
+    out = ["Workspace: " + folder, same or "Wrote %s from %s." % (rel, _whose_template(house, face or FACES["signoff"], name))]
+    out += ["In the house, %s %s" % (p["message"], p["fix"]) for p in _unread(house)] if not second else []
     if kept:
         out.append(kept)
     out += _carried_lines(skeleton, carried, earlier is not None, same)
@@ -3400,9 +3650,20 @@ def _write_face(store, folder, house, problems, name, skeleton, rel, check_cmd, 
     unread = [p for p in _findings(store) if p.get("key") == "Actuals"] if rel == face_file(FACES["delivery"]) else []
     if unread:  # what an Actuals line says is not in the plan, and its feature shows as not started: say so
         out += ["", "An Actuals line could not be read, so the plan leaves it out and shows that feature as not started:"] + _show(unread)
+    out += _nowhere_to_read(store, skeleton)
     if problems:
         out += ["", "The template or word list needs attention:"] + _show(problems)
     left = len(skeleton["slots"]) - len(carried)
+    if second:
+        out = out[1:2] + ([kept] if kept else []) + (["Next: fill the %d slot(s) in %s too." % (left, rel)] if left else [])
+        if show:
+            print("\n".join(out))
+        return 0
+    if not skeleton["slots"]:  # a template with no passage to write: the brief is finished as made
+        out += ["", "Next: %s has no slot to fill. Check it: %s%s" % (rel, check_cmd, FOLDER)]
+        if show:
+            print("\n".join(out))
+        return 0
     out += ["", "Next: fill the %d slot(s) in %s. Each starts '> {slot:' and the quoted lines under it say what to "
             "write. Then run: %s%s" % (left, rel, check_cmd, FOLDER)]
     if show:
@@ -3531,6 +3792,17 @@ def _carried_lines(skeleton, carried, had_earlier, same):
     return out
 
 
+def _nowhere_to_read(store, skeleton):
+    """What bundle says when a brief names requirements for the whole work and neither the sign-off brief nor the Scope
+    brief has been sent: the brief's reader has nowhere to open them, and the next step is to send one (ADR 0045)."""
+    work = next((r for r in store["records"] if r["kind"] == "work"), None)
+    if not skeleton["sizes"].get("whole work") or any(k in last_sent(work) for k in ("signoff", "scope")):
+        return []
+    return ["", "This brief names requirements that hold for the whole work, and its reader has nowhere to read them in full: no "
+            "sign-off brief or Scope brief has been sent. The brief says so. To send one: %s bundle signoff --outbox%s   Then make "
+            "this brief again and it carries the link." % (BA, FOLDER)]
+
+
 # ==== helper/src/outbox.py ==================================================
 """Outbox: what is sent, where it went, and the files and note that prepare a sending (ADR 0026).
 
@@ -3556,8 +3828,8 @@ def sent_is_current(store, item):
     kind, _, name = item["from"].partition(" ")
     if kind.lower() == "baseline":
         m = _manifest(store["folder"], name.strip())
-        return bool(m) and m["records version"] == version_of(store)
-    return item["from"].split()[-1].lower() == version_of(store)
+        return bool(m) and same_version(store, m["records version"])
+    return same_version(store, item["from"].split()[-1])
 
 
 def sent_what(item):
@@ -3703,9 +3975,20 @@ def _boards(house):
     return out
 
 
-def _handover_note(face, store, live_work, house, rel, skeleton, empty, feature, again):
+ATTACH_FALLBACK = "If your tools cannot attach a file, give the person the file and say which item it belongs on."
+
+
+def summary_copy(feature):
+    """Where the copy of a Feature's summary is written for sending: a file a person can recognise on the item it is
+    attached to, named by the Feature's ID and name."""
+    slug = re.sub(r"[^a-z0-9]+", "-", feature["name"].lower()).strip("-")
+    return "outbox/%s%s.md" % (feature["id"], "-" + slug if slug else "")
+
+
+def _handover_note(face, store, live_work, house, rel, skeleton, empty, feature, again, attach=None):
     """(the note's lines, the business item's body or None) for a Feature's handover brief: one of the four states
-    of ADR 0026, by what the house stores and what the Feature says."""
+    of ADR 0026, by what the house stores and what the Feature says. `attach` is the copy of the Feature's summary, when
+    the house has one (ADR 0048): it is attached, as a file, to the item the brief is the body of."""
     out, base = ["Note for: " + rel, _made_line(store, skeleton, empty)], store.get("baseline")
     kept = "baseline " + base["name"] if base else "records version " + skeleton["version"]
     boards, who = _boards(house), feature["id"]
@@ -3713,10 +3996,13 @@ def _handover_note(face, store, live_work, house, rel, skeleton, empty, feature,
     if not boards:
         if not tracker:
             return out + ["Send as: nothing yet. This house has no place for the %s." % face["title"],
-                          "Hand to the person: %s and this note." % rel, "To set a place: run the adopt-house skill."], None
+                          "Hand to the person: %s and this note." % ", ".join([rel] + ([attach] if attach else [])),
+                          "To set a place: run the adopt-house skill."], None
         return out + ["Send as: a Jira item",
-                      "Update: item %s, body: the whole text of %s" % (tracker, rel)] + _then_add(
-            ["- handover %s: item %s, %s, %s, <link>" % (who, tracker, _today(), kept)], "<link>"), None
+                      "Update: item %s, body: the whole text of %s" % (tracker, rel)] + _attach_lines(attach, tracker) + _then_add(
+            ["- handover %s: item %s, %s, %s, <link>" % (who, tracker, _today(), kept)] +
+            (["- summary %s: item %s, %s, %s, <link>" % (who, tracker, _today(), kept)] if attach else []),
+            "each <link>" if attach else "<link>"), None
     have = {"tracker": tracker, "business item": business}
     need = [b for b in boards if not have[b[0]]]
     title = feature["name"]
@@ -3731,7 +4017,7 @@ def _handover_note(face, store, live_work, house, rel, skeleton, empty, feature,
         out += ["Then run this command again: " + again]
         return out, None
     out += ["Send as: " + ("Jira items" if len(boards) > 1 else "a Jira item"),
-            "Update: item %s, body: the whole text of %s" % (tracker, rel)]
+            "Update: item %s, body: the whole text of %s" % (tracker, rel)] + _attach_lines(attach, tracker)
     body = None
     if len(boards) > 1:
         out += ["Update: item %s, body: the whole text of outbox/business-%s.md" % (business, who)]
@@ -3741,9 +4027,32 @@ def _handover_note(face, store, live_work, house, rel, skeleton, empty, feature,
                     % (link[0], tracker, business)]
         body = _business_body(store, live_work, house, feature)
     lines = ["- handover %s: item %s, %s, %s, <link>" % (who, tracker, _today(), kept)]
+    if attach:
+        lines.append("- summary %s: item %s, %s, %s, <link>" % (who, tracker, _today(), kept))
     if body is not None:
         lines.append("- business %s: item %s, %s, %s, <link>" % (who, business, _today(), kept))
     return out + _then_add(lines, "each <link>" if len(lines) > 1 else "<link>"), body
+
+
+def _summary_note(store, house, rel, skeleton, empty, feature):
+    """The note for a Feature's summary sent alone (ADR 0048): a file attached to the Feature's tracker item, or handed to
+    the person when there is no item or no place."""
+    out, base = ["Note for: " + rel, _made_line(store, skeleton, empty)], store.get("baseline")
+    kept = "baseline " + base["name"] if base else "records version " + skeleton["version"]
+    tracker = value(feature, "tracker")
+    if not tracker and _boards(house):
+        return out + ["Send as: nothing yet. %s has no tracker item to attach this to." % feature["id"],
+                      "Make the item first, with the engineers' brief: %s bundle handover %s --outbox%s" % (BA, feature["id"], FOLDER)]
+    if not tracker:
+        return out + ["Send as: nothing yet. This house has no place for the feature summary.",
+                      "Hand to the person: %s and this note." % rel, "To set a place: run the adopt-house skill."]
+    return out + ["Send as: a file attached to a Jira item"] + _attach_lines(rel, tracker) + _then_add(
+        ["- summary %s: item %s, %s, %s, <link>" % (feature["id"], tracker, _today(), kept)], "<link>")
+
+
+def _attach_lines(attach, item):
+    """The two lines of a note that say to attach the feature summary to an item, or none when there is no summary."""
+    return ["Attach: %s to item %s, as a file" % (attach, item), ATTACH_FALLBACK] if attach else []
 
 
 def _business_body(store, live_work, house, feature):
@@ -3770,17 +4079,33 @@ def send(args, got, face, again):
     live = read_workspace(folder)
     work = next((r for r in live["records"] if r["kind"] == "work"), None)
     empty = len(sk["slots"]) - len(carried)
-    copy = os.path.join("outbox", os.path.basename(rel))
+    copy = summary_copy(record) if face is FACES["summary"] else os.path.join("outbox", os.path.basename(rel))
     files = {copy: sent}
     if record is None:
         name_of_work = next((r["name"] for r in store["records"] if r["kind"] == "work"), "")
         note = _page_note(face, store, work, house, copy, sk, empty, "%s: %s" % (name_of_work, words.get(face["word"])))
         if "```mermaid" in lines and "Send as: a Confluence page" in note:  # what the page will do to a picture drawn on it by hand (ADR 0038)
             note.append(DIAGRAM_UPDATE if any(l.startswith("Update: page") for l in note) else DIAGRAM_CREATE)
+    elif face is FACES["summary"]:
+        note = _summary_note(store, house, copy, sk, empty, record)
     else:
-        note, business = _handover_note(face, store, work, house, copy, sk, empty, record, again)
+        attach = None
+        thin = os.path.join(folder, *face_file(FACES["summary"], record).split("/"))
+        if face is FACES["handover"] and has_summary(house) and os.path.isfile(thin):
+            attach = summary_copy(record)  # the summary in faces/ is the copy, as the brief is: one text
+            with open(thin, "rb") as f:
+                files[attach] = f.read()
+        note, business = _handover_note(face, store, work, house, copy, sk, empty, record, again, attach)
         if business is not None:
             files["outbox/business-%s.md" % record["id"]] = business
+    for other in [k for k, v in files.items() if k != copy and isinstance(v, bytes) and b"\n> {slot:" in v]:
+        thin_rel = face_file(FACES["summary"], record)  # the summary made beside the brief has a passage still to write
+        note.insert(2, "Not ready to send: a slot in %s is still to be written. Write it there, then run this command again so "
+                       "%s holds it: %s" % (thin_rel, other, again))
+    if empty:  # a copy made before its passages are written is not the brief: say so, and how to make it again
+        note.insert(2, "Not ready to send: %s in %s %s still to be written. Write %s there, then run this command again so the copy "
+                       "holds %s: %s" % (_plural(empty, "slot"), rel, "is" if empty == 1 else "are", "it" if empty == 1 else "them",
+                                         "it" if empty == 1 else "them", again))
     files[copy[:-3] + ".note.md"] = "\n".join(note) + "\n"
     os.makedirs(os.path.join(folder, "outbox"), exist_ok=True)
     for rel_name, text in files.items():
@@ -3878,9 +4203,10 @@ def landing(args):
 
 
 # ==== helper/src/fix.py =====================================================
-"""Fix: `check --fix`, which gives records IDs after a backup and changes nothing else (ADR 0011).
+"""Fix: `check --fix`, which gives records IDs after a backup, and `check --split`, which files each Feature's records
+in a file of its own (ADR 0011, 0049). Once a workspace has a records/ folder, --fix files new records too.
 
-Owns the plan (_plan_ids), applying it to the lines of the files, and the backup. Must not know: findings or briefs.
+Owns the plan (_plan_ids, _plan_filing), applying it to the lines of the files, and the backup. Must not know: findings or briefs.
 """
 
 def _highest_numbers(store):
@@ -3995,17 +4321,82 @@ def _backup_and_write(folder, changed):
     for file in changed:
         target = os.path.join(dest, file)
         os.makedirs(os.path.dirname(target), exist_ok=True)
-        shutil.copy2(os.path.join(folder, file), target)
+        if os.path.isfile(os.path.join(folder, file)):  # a file that is new has nothing to keep
+            shutil.copy2(os.path.join(folder, file), target)
     for file, text in changed.items():
+        os.makedirs(os.path.dirname(os.path.join(folder, file)), exist_ok=True)
         with open(os.path.join(folder, file), "w", encoding="utf-8", newline="") as f:
             f.write(text)
     return "backup/" + os.path.basename(dest)
 
 
+def feature_file(feature):
+    """The file a Feature's records are filed in: records/<Feature ID>.md."""
+    return "records/%s.md" % feature["id"]
+
+
+def _plan_filing(store):
+    """What filing by feature would move (ADR 0049): [(the Feature, its file, the records to move there, in order)] for each
+    Feature that counts and has an ID. A record is moved when it is in work.md and belongs to that one Feature and to no
+    other (`belongs_to`): the Feature itself, a requirement that names only it and does not say `all`, a flow only it names,
+    a question or an Observed record about nothing outside it. Everything else stays in work.md."""
+    live = [f for f in live_features(store) if _ASSIGNED.match(f["id"] or "")]
+    owners = {}
+    for f in live:
+        mine = belongs_to(store, f)
+        for r in mine["requirements"] + mine["flows"] + mine["questions"] + mine["observed"]:
+            owners.setdefault(id(r), []).append(f)
+    plan = []
+    for f in live:
+        def only_here(r):
+            if owners.get(id(r)) != [f]:
+                return False
+            return not (r["kind"] == "requirement" and (holds_for_all(r) or len(features_of(store, r)) > 1))
+        todo = [r for r in [f] + [x for x in store["records"] if x is not f and only_here(x)] if r["file"] == "work.md"]
+        if todo:
+            plan.append((f, feature_file(f), todo))
+    return plan
+
+
+def _apply_filing(store, plan):
+    """The new text of work.md and of each feature's file: {file: text}. Each record's lines are moved byte for byte; one
+    blank line stands between two records, and what stays in work.md stays in its order."""
+    lines, gone, out = store["files"]["work.md"], set(), {}
+    for f, dest, todo in plan:
+        blocks = []
+        for r in todo:
+            gone.update(range(r["line"], r["end"] + 1))
+            blocks.append("".join(lines[r["line"] - 1:r["end"]]).rstrip("\r\n") + "\n")
+        have = "".join(store["files"].get(dest, []))
+        out[dest] = (have.rstrip("\r\n") + "\n\n" if have.strip() else "") + "\n".join(blocks)
+    kept = "".join(t for n, t in enumerate(lines, 1) if n not in gone)
+    out["work.md"] = kept.rstrip("\r\n") + "\n"
+    return out
+
+
+def _file_by_feature(store, folder):
+    """Do the filing: (the lines that say what was moved, the store read again), or ([], store) with nothing to move."""
+    plan = _plan_filing(store)
+    if not plan:
+        return [], store
+    before = len(store["files"]["work.md"])
+    where = _backup_and_write(folder, _apply_filing(store, plan))
+    after = read_workspace(folder)
+    said = ["Backup of work.md and each file changed written to %s/" % where]
+    for f, dest, todo in plan:
+        kinds = [r["kind"] for r in todo]
+        said.append("  %s: %s moved from work.md (%s)" % (dest, _plural(len(todo), "record"), ", ".join(
+            "%d %s" % (kinds.count(k), label(k)) for k in KINDS if kinds.count(k))))
+    left = [r for r in after["records"] if r["file"] == "work.md"]
+    said.append("  work.md: %s, %d lines (it had %d lines)" % (_plural(len(left), "record"), len(after["files"]["work.md"]), before))
+    return said, after
+
+
 # ==== helper/src/check.py ===================================================
 """Check: the findings worked out from the records, and the `check` verb that reports them (ADR 0019).
 
-Owns _findings (the one place a new kind of finding joins), coverage of features, and the report. Findings on
+Owns _findings (the one place a new kind of finding joins) and the report. Whether a requirement is in a Feature is
+counted by `status` and is never a finding (ADR 0044). Findings on
 briefs come from facecheck and are added here. Exit code 0 whatever is found.
 """
 
@@ -4019,11 +4410,16 @@ def _findings(store, freezing=None):
     if settled:
         found.append(_problem("no-id", {"file": settled[0]["file"]}, settled[0]["line"], count=len(settled),
                               first=settled[0]["line"]))
-    found += _coverage(store)
     found += _empty_features(store)
+    found += _some_without_priority(store)
+    found += _earlier_reckoning(store)
     work = next((r for r in store["records"] if r["kind"] == "work"), None)
     if work and store["folder"] and value(work, "house"):
-        found += _house(store["folder"], work, None)[1]
+        house, problems, _ = _house(store["folder"], work, None)
+        found += problems
+        # What the house holds that no brief reads is said on the Work's House line, with the name to give it (ADR 0048).
+        found += [_problem("not-read", work, work["fields"]["house"]["line"], what="In the house, " + p["message"], how=p["fix"])
+                  for p in _unread(house)]
     if work:
         found += _destination_findings(work)
         found += _unknown_baselines(store, work, freezing)
@@ -4041,58 +4437,53 @@ def _feature_shown(f, live=()):
     return f["name"] if "," not in f["name"] and not same else f["id"] or f["name"]
 
 
-def _feature_gap(store, req):
-    """None when the requirement is in a Feature, or is deliberately in none (`- Feature: none`); else (the part that fails, its line, the Feature it names or None).
-    A requirement is in a Feature when it has a `Feature` line and every part names a Feature that is not withdrawn.
-    With no line at all the part is ''."""
-    field = req["fields"].get("feature")
-    if not field:
-        return "", req["empty"].get("feature"), None
-    if left_out_of_features(req) is not None:
-        return None  # deliberately in no feature: nothing to say
-    for part in _parts(field["value"]):
-        f = feature_named(store["records"], part)
-        if f is None or status_of(f) == "withdrawn" or kept_original(store, f):
-            return part, field["line"], f
-    return None
-
-
-def _coverage(store):
-    """Once the workspace holds one Feature that is not withdrawn, each requirement to deliver is in one
-    (ADR 0024); each that is not is `missing`. Before that nothing is said: a small job needs no features."""
-    recs = store["records"]
-    live = live_features(store)
-    if not live:
-        return []
-    add = "- Feature: <one or more of %s, separated by commas>" % ", ".join("'%s'" % _feature_shown(f, live) for f in live)
-    out = []
-    for r in _loose(store):
-        part, line, f = _feature_gap(store, r)
-        if not part and "feature" not in r["fields"]:
-            if line is None:
-                last = max([x["line"] for x in r["fields"].values()] + list(r["empty"].values()) + [r["line"]])
-                what, at = "'Feature' line on this requirement, and it is one to deliver", "after line %d" % last
-            else:
-                what, at = "'Feature' line on this requirement, and it is one to deliver", "in place of line %d" % line
-        elif f is None:
-            what = "Feature for this requirement: line %d names '%s', which is not a Feature record" % (line, part)
-            at = "in place of line %d" % line
-        else:
-            parts = ["%s '%s'" % (x["id"], x["name"]) if x["id"] else "'%s'" % x["name"]
-                     for x in recs if x["kind"] == "feature" and x is not f
-                     and feature_named(recs, " ".join(_parts(value(x, "sliced from"))[:1])) is f]
-            into = (parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]) if parts else ""
-            what = ("Feature for this requirement: line %d names '%s', which was sliced into %s" % (line, part, into)
-                    if kept_original(store, f) else "Feature for this requirement: line %d names '%s', which is withdrawn%s" % (
-                        line, part, ". It was sliced into " + into if into else ""))
-            at = "in place of line %d" % line
-        out.append(_problem("missing", r, r["line"], what=what, key="Feature", at=at, add=add))
-    return out
-
-
 def _loose(store):
-    """The requirements to deliver that are in no Feature and not deliberately so: what coverage reports."""
-    return [r for r in to_deliver(store) if _feature_gap(store, r) is not None]
+    """The requirements to deliver that are not yet in a Feature: a count for `status`, never a finding (ADR 0044)."""
+    return [r for r in to_deliver(store) if grouping_of(store, r) == "not yet"]
+
+
+def _earlier_reckoning(store):
+    """One line of information, said once, when a brief, an approval or a sending cites the records version as releases
+    up to 0.3.0 reckoned it and that differs from today's (ADR 0049): work.md is not in the order of its IDs, and the
+    version no longer depends on order. No record changed, and what cites the earlier figure is read as citing these
+    records. Nothing is said when nothing cites it."""
+    old = earlier_version(store)
+    if not old or not store["folder"]:
+        return []
+    work = next((r for r in store["records"] if r["kind"] == "work"), None)
+    cites = ["the approval of " + a["name"] for a in (work["approvals"] if work else []) if a["version"] == old]
+    cites += ["the sending of " + i["face"] for i in (work["published"] if work else []) if i["from"].split()[-1].lower() == old]
+    faces = os.path.join(store["folder"], "faces")
+    briefs = []
+    for name in sorted(os.listdir(faces)) if os.path.isdir(faces) else []:
+        how, m = _stamp_of(store, "faces/" + name)
+        if how == "stamped" and not m.group("b") and m.group("v") == old:
+            briefs.append("faces/" + name)
+    if not cites and not briefs:
+        return []
+    first = next(iter(store["files"]))
+    return [_problem(
+        "stale", {"file": first}, 1, old=old, new=version_of(store),
+        what="The records version of this Work is now reckoned without regard to the order records are written in, and no record changed",
+        how="Nothing to do for %s: %s cited %s, and is read as citing these records.%s" % (
+            "them" if len(cites + briefs) > 1 else "it", ", ".join(cites + briefs), old,
+            " A brief among them was made by an earlier release: when you next need it, make it again with %s bundle <its name>%s and "
+            "it carries your passages." % (BA, FOLDER) if briefs else ""))]
+
+
+def _some_without_priority(store):
+    """One line of information when some requirements carry a priority and others, not withdrawn, carry none: it names
+    those with none and the line to add (ADR 0047). With no priority anywhere nothing is said: a small job needs none."""
+    reqs = [r for r in store["records"] if r["kind"] == "requirement" and status_of(r) != "withdrawn"]
+    bare = [r for r in reqs if not value(r, "priority")]
+    if not bare or len(bare) == len(reqs):
+        return []
+    shown = ", ".join(r["name"] for r in bare[:10]) + (", and %d more" % (len(bare) - 10) if len(bare) > 10 else "")
+    return [_problem(
+        "not-given", bare[0], bare[0]["line"], key="Priority", after=_last_line(bare[0]), add="- Priority: <must | should | could | wont>",
+        says="%d of %d requirements carry no priority: %s. If the material or the person gave one, add to each, among its own "
+             "lines: - Priority: <must | should | could | wont>   One that was asked for and will not be delivered is wont. If none "
+             "was given, leave the line out." % (len(bare), len(reqs), shown))]
 
 
 def _empty_features(store):
@@ -4227,6 +4618,7 @@ def _listing(store):
     holds, so a reader of check need not open the files to learn it."""
     first = next(iter(store["files"]), "work.md")
     out = []
+    prioritised = any(r["kind"] == "requirement" and value(r, "priority") for r in store["records"])
     for r in store["records"]:
         if r["kind"] == "question":
             stands = "answered" if value(r, "answer") else "assumed" if value(r, "working answer") else "open"
@@ -4234,6 +4626,8 @@ def _listing(store):
             stands = standing_of(r)
         else:
             stands = status_of(r)
+        if r["kind"] == "requirement" and prioritised:  # shown once any requirement has one, so one that lacks it is seen
+            stands += ", " + (value(r, "priority") or "no priority")
         out.append("  %s%s (%s): %s%s" % (label(r["kind"]), " " + r["id"] if r["id"] else ", no ID", stands, r["name"],
                                           "" if r["file"] == first else " [%s]" % r["file"]))
     return out
@@ -4293,10 +4687,16 @@ def check(args):
         return 0
     store = read_workspace(folder)
     print("Workspace: " + folder)
+    if args.split:
+        return _split(store, folder, args)
     if args.fix:
         replace, insert, notes = _plan_ids(store)
-        if not notes:
+        filed = os.path.isdir(os.path.join(folder, "records")) and _plan_filing(store)
+        if not notes and not filed:
             print("Nothing to fix: every record that can have an ID has one.")
+        elif not notes:
+            said, store = _file_by_feature(store, folder)
+            print("Filed by feature, as this workspace keeps its records:\n" + "\n".join(said) + "\nNothing else was changed. Checking again:")
         else:
             changed = _apply(store, replace, insert)
             where = _backup_and_write(folder, changed)
@@ -4304,9 +4704,43 @@ def check(args):
             print("Changed (line numbers are as they were before the change):")
             for note in notes:
                 print("  " + note)
-            print("Nothing else was changed. Checking again:")
             store = read_workspace(folder)
+            if os.path.isdir(os.path.join(folder, "records")):  # a workspace that files by feature keeps doing so (ADR 0049)
+                said, store = _file_by_feature(store, folder)
+                if said:
+                    print("Filed by feature, as this workspace keeps its records:\n" + "\n".join(said))
+            print("Nothing else was changed. Checking again:")
     print("\n".join(_report(store, _face_findings(store, args.house))))
+    return 0
+
+
+def _split(store, folder, args):
+    """`check --split`: give IDs first (a file is named by its Feature's ID), then file each Feature's records, and say
+    what moved and whether the records version did (ADR 0049)."""
+    work = next((r for r in store["records"] if r["kind"] == "work"), None)
+    if work and value(work, "home"):
+        print("Not split: this Work's home is a page (%s), and a page carries one file, so its records stay in work.md. To "
+              "file records by feature, keep the Work in a folder: take the 'Home' line off the Work, then run this again."
+              % value(work, "home"))
+        return 0
+    replace, insert, notes = _plan_ids(store)
+    if notes:
+        where = _backup_and_write(folder, _apply(store, replace, insert))
+        print("Gave IDs first, so each file can be named by its Feature. A backup of the files is in %s/." % where)
+        print("\n".join("  " + n for n in notes))
+        store = read_workspace(folder)
+    before = version_of(store)
+    said, after = _file_by_feature(store, folder)
+    if not said:
+        print("Nothing to file: %s" % ("every record that belongs to one Feature is already in that Feature's file."
+                                      if live_features(store) else "there is no Feature yet, and records are filed by Feature."))
+        return 0
+    print("\n".join(said))
+    now = version_of(after)
+    print("Records version: %s, as it was: no record changed, and every brief and approval stands." % now if now == before else
+          "Records version: %s (it was %s). No record changed. A brief made before this says it is older than the records: make it "
+          "again, and it reads the same." % (now, before))
+    print("New records go in work.md as before; %s --fix%s files them." % (CHECK, FOLDER))
     return 0
 
 
@@ -4508,9 +4942,12 @@ def _old_diagram_style(house):
 def _unread(house):
     """Findings for what the house holds that ba never reads: a template named for none of the forms; in a pack,
     any section that is not a house file."""
-    found, forms = [], "signoff.md, signoff-<form>.md, scope.md, delivery.md and handover.md"
+    found, forms = [], ("signoff.md, signoff-<form>.md, scope.md, delivery.md, handover.md (the engineers' brief for a feature) and "
+                        "summary.md (the feature summary for the business)")
+    if not house.own:
+        return []
     here = {"file": house.own.path}
-    for name in house.own.names() if house.own else []:
+    for name in house.own.names():
         if name in HOUSE_FILES:
             continue
         inside = name.startswith("templates/") and "/" not in name[10:]
@@ -4591,10 +5028,12 @@ how a brief is laid out. A brief asks this module for a baseline's store and ver
 # Lines that say where or when, not what is true: left out of the records version, of a baseline's copy
 # and of its fingerprints (ADRs 0011, 0013, 0033, 0038). A brief made from a baseline shows them as they are now. Who owes an
 # answer, when it was raised and when it was asked are not what was signed off.
-LIVES_AT = {"work": ("tracker", "home"), "feature": ("tracker", "business item"), "question": ("raised", "asked", "owner")}
+# A requirement held back from its feature is grouping with a reason (ADR 0046): what was signed off is the deliverable.
+LIVES_AT = {"work": ("tracker", "home"), "feature": ("tracker", "business item"), "question": ("raised", "asked", "owner"),
+            "requirement": ("held back because", "held back by")}
 
 
-def version_of(store):
+def version_of(store, legacy=False):
     """The first 8 hex characters of the SHA-256 of the record files' bytes in store order, CRLF read as LF,
     leaving out what does not say what was agreed (ADR 0011, "What the records version leaves out", is the one list):
     the Work's sections in LEFT_OUT, so recording an approval or a sending, or reading actuals, does not make a brief
@@ -4617,9 +5056,56 @@ def version_of(store):
         for key in LIVES_AT.get(r["kind"], ()) + (PRESENTATION if r["kind"] == "work" else ()):
             if key in r["fields"]:
                 skip.setdefault(r["file"], set()).add(r["fields"][key]["line"])
-    data = "".join("".join(t for n, t in enumerate(lines, 1) if n not in skip.get(file, ()))
-                   for file, lines in store["files"].items()).replace("\r\n", "\n")
+    if legacy:  # as releases up to 0.3.0 took it: the bytes of the one file, in the order it is written
+        data = "".join("".join(t for n, t in enumerate(lines, 1) if n not in skip.get(file, ()))
+                       for file, lines in store["files"].items()).replace("\r\n", "\n")
+    else:
+        data = _records_text(store, skip)
     return hashlib.sha256(data.encode("utf-8")).hexdigest()[:8]
+
+
+def _version_order(records):
+    """The order the records version is taken in (ADR 0049): each kind in turn, each by the number of its ID, a record
+    with no number after those in its reading order. It does not depend on which file a record is in or where."""
+    def key(item):
+        i, r = item
+        m = _ASSIGNED.match(r["id"] or "")
+        return (r["kind"] != "work", KINDS.index(r["kind"]), 0 if m else 1, int(r["id"].split("-")[1]) if m else 0, i)
+    return [r for _, r in sorted(enumerate(records), key=key)]
+
+
+def _records_text(store, skip):
+    """What the records version is taken of (ADR 0049): what comes before the first record of work.md, then each record's
+    own lines in `_version_order`, one blank line between two records. So filing a record in another file, or moving it
+    within one, leaves the version alone. For a work.md written in that order with one blank line between records it is
+    the text of the file, so such a Work has the version earlier releases gave it."""
+    first = next(iter(store["files"]), None)
+    if first is None:
+        return ""
+    top = min([r["line"] for r in store["records"] if r["file"] == first] or [len(store["files"][first]) + 1])
+    out = "".join(t for n, t in enumerate(store["files"][first][:top - 1], 1) if n not in skip.get(first, ()))
+    blocks = []
+    for r in _version_order(store["records"]):
+        lines = [t for n, t in enumerate(store["files"][r["file"]][r["line"] - 1:r["end"]], r["line"]) if n not in skip.get(r["file"], ())]
+        if "".join(lines).strip():
+            blocks.append("".join(lines).replace("\r\n", "\n").rstrip("\n"))
+    return out.replace("\r\n", "\n") + "\n\n".join(blocks) + "\n"
+
+
+def earlier_version(store):
+    """The records version as releases up to 0.3.0 reckoned it, when that differs from today's and can still be told: a
+    Work in one file whose records are not in the order of their kinds and IDs. Else ''. A brief, an approval or a sending
+    that cites it cites these records (`same_version`); nothing in them changed."""
+    if store.get("baseline") or len(store["files"]) != 1:
+        return ""
+    old = version_of(store, legacy=True)
+    return old if old != version_of(store) else ""
+
+
+def same_version(store, cited):
+    """True when a records version someone cited is the version of these records, by today's reckoning or the earlier one."""
+    cited = (cited or "").lower()
+    return bool(cited) and cited in (version_of(store), earlier_version(store))
 
 
 # ---------------------------------------------------------------------------
@@ -4948,7 +5434,7 @@ def approval_stands(store, a):
     """True when an approval still holds for the records (ADR 0038): it is of the records version they have, or it is
     read against a baseline and nothing but grouping differs from it. An approval of a records version that no baseline
     froze cannot be compared, and stands only for that version."""
-    if _approved_version(store, a) == version_of(store):
+    if same_version(store, _approved_version(store, a)):
         return True
     base = approved_baseline(store, a)
     return base is not None and not any(_since(store, base, grouping=False))
@@ -5200,8 +5686,8 @@ def held_up(store, record):
     for f in store["records"]:
         if f["kind"] != "feature" or status_of(f) == "withdrawn" or not about:
             continue
-        mine = {x.lower() for x in [f["id"]] + f["flows"] + [r["id"] for r in _feature_reqs(store, f)] if x}
-        if about & mine:
+        mine = belongs_to(store, f)
+        if any(record is x for x in mine["questions"] + mine["observed"]):
             out.append(f["name"])
     return out
 
@@ -5235,7 +5721,7 @@ def _status_face(store, face, label):
         return "%s: %s, made from baseline %s%s" % (label, rel, m.group("b"),
                                                    ", frozen with a waiver: " + m.group("w") if m.group("w") else "")
     return "%s: %s, made from the working records, %s" % (
-        label, rel, "up to date" if m.group("v") == version_of(store) else "older than the records")
+        label, rel, "up to date" if same_version(store, m.group("v")) else "older than the records")
 
 
 def _status_delivery_plan(store):
@@ -5268,8 +5754,7 @@ def _status_brief(store):
 
 def _feature_reqs(store, feature):
     """The requirements that are not withdrawn and name this Feature on their `Feature` line."""
-    return [r for r in store["records"] if r["kind"] == "requirement" and status_of(r) != "withdrawn"
-            and any(feature_named(store["records"], p) is feature for p in feature_parts(r))]
+    return [r for r in belongs_to(store, feature)["requirements"] if status_of(r) != "withdrawn"]
 
 
 def _status_landed(house):
@@ -5314,22 +5799,72 @@ def _status_features(store):
         return []
     live = live_features(store)
     out = ["Features: %d" % len(live)]
-    out += ["  %s%s (%s): %s" % (r["id"] + " " if r["id"] else "", r["name"], status_of(r),
-                                  _plural(len(_feature_reqs(store, r)), "requirement")) for r in live]
+    held = lambda f: len([r for r in _feature_reqs(store, f) if held_back(r)])
+    out += ["  %s%s (%s): %s%s%s" % (r["id"] + " " if r["id"] else "", r["name"], status_of(r),
+                                      _plural(len(_feature_reqs(store, r)), "requirement"),
+                                      ", %d held back" % held(r) if held(r) else "",
+                                      "" if r["file"] == "work.md" else ", in " + r["file"]) for r in live]
     out += ["  %s%s (%s): kept, sliced into %s%s" % (
         r["id"] + " " if r["id"] else "", r["name"], status_of(r), ", ".join(p["id"] or p["name"] for p in _parts_of(store, r)),
         "; tracker item " + value(r, "tracker") if value(r, "tracker") else "")
         for r in recs if r["kind"] == "feature" and kept_original(store, r)]
+    return out + _status_grouping(store)
+
+
+NOT_YET_SHOWN = 10  # how many requirements not yet in a feature `status` names before it gives a count
+
+
+SPLIT_PAST = 40  # records in work.md past which `status` says how to file them by feature (ADR 0011, 0049)
+
+
+def _status_file(store, work):
+    """One line about the length of work.md, once it holds more than SPLIT_PAST records and a Feature that counts: how
+    many records and lines, and the command that files each Feature's records in a file of its own. For a Work whose
+    home is a page it says instead that a page carries one file. Nothing once there is nothing left to file."""
+    mine = [r for r in store["records"] if r["file"] == "work.md"]
+    if len(mine) <= SPLIT_PAST or not live_features(store):
+        return []
+    size = "work.md holds %d records in %d lines" % (len(mine), len(store["files"]["work.md"]))
+    if work and value(work, "home"):
+        return ["Records file: %s. Its home is a page, and a page carries one file, so they stay in one." % size]
+    if not _plan_filing(store) and all(_ASSIGNED.match(f["id"] or "") for f in live_features(store)):
+        return []
+    return ["Records file: %s. To file each feature's records in a file of its own: %s --split%s" % (size, CHECK, FOLDER)]
+
+
+def _status_grouping(store):
+    """How the requirements to deliver stand in the grouping into features: counts, never findings (ADR 0044). One line
+    for those in a feature, then one each, only when it has something, for those that hold for the whole work, are
+    deliberately in none, and are not yet in a feature; the last names at most NOT_YET_SHOWN and then gives a count."""
     deliver = to_deliver(store)
-    loose = _loose(store) if live else []
-    deliberate = [r for r in deliver if left_out_of_features(r) is not None] if live else []
-    out.append("In a feature: %d of %d requirements to deliver" % (len(deliver) - len(loose) - len(deliberate), len(deliver)))
-    if loose or deliberate:
-        out.append("  Not in a feature: " + ", ".join(
-            [r["name"] for r in loose] +
-            ["%s (deliberate%s)" % (r["name"], ": " + left_out_of_features(r) if left_out_of_features(r) else "")
-             for r in deliberate]))
+    by = {k: [r for r in deliver if grouping_of(store, r) == k] for k in ("feature", "held", "all", "none", "not yet")}
+    out = ["In a feature: %d of %d requirements to deliver" % (len(by["feature"]), len(deliver))]
+    if by["held"]:  # the reason and the name are shown as written; nothing reads them (ADR 0046)
+        out.append("  Held back: %d" % len(by["held"]))
+        out += ["    - %s (%s): %s%s" % (r["name"], ", ".join(f["name"] for f in features_of(store, r)), value(r, "held back because"),
+                                        " Said by " + value(r, "held back by") if value(r, "held back by") else "") for r in by["held"]]
+    if by["all"]:
+        out.append("  Hold for the whole work: %d" % len(by["all"]))
+    if by["none"]:
+        out.append("  Deliberately in none: %d (%s)" % (len(by["none"]), "; ".join(
+            r["name"] + (": " + left_out_of_features(r) if left_out_of_features(r) else "") for r in by["none"])))
+    if by["not yet"]:
+        shown = [r["name"] + _names_no_feature(store, r) for r in by["not yet"][:NOT_YET_SHOWN]]
+        more = len(by["not yet"]) - len(shown)
+        out.append("  Not yet in a feature: %d (%s%s)" % (len(by["not yet"]), ", ".join(shown), ", and %d more" % more if more else ""))
     return out
+
+
+def _names_no_feature(store, req):
+    """` (its Feature line names 'X', which is not a Feature record)` for a requirement not yet in a feature whose line
+    names something, so a slip in a name is seen where the count is; '' with no line."""
+    parts = feature_parts(req)
+    if not parts:
+        return ""
+    f = feature_named(store["records"], parts[0])
+    into = ", ".join(" ".join(x for x in (p["id"], "'%s'" % p["name"]) if x) for p in _parts_of(store, f)) if f is not None else ""
+    why = ("is not a Feature record" if f is None else "was sliced into " + into if into else "is withdrawn")
+    return " (its Feature line names '%s', which %s)" % (parts[0], why)
 
 
 def _status_withdrawn(store):
@@ -5356,7 +5891,7 @@ def _handover_state(store, feature):
         return "none", rel
     if how != "stamped":
         return "unknown", rel
-    return ("current" if (m.group("v") or m.group("bv")) == version_of(store) or m.group("b") else "older"), rel
+    return ("current" if same_version(store, m.group("v") or m.group("bv")) or m.group("b") else "older"), rel
 
 
 def _sign_offs(store, work, waiting):
@@ -5371,7 +5906,7 @@ def _sign_offs(store, work, waiting):
         return []
     if not item:
         how, m = _stamp_of(store, face_file(FACES["signoff"]))
-        if how != "stamped" or (m.group("v") or m.group("bv")) != version_of(store):
+        if how != "stamped" or not same_version(store, m.group("v") or m.group("bv")):
             return []
     last = {a["name"].lower(): a for a in work["approvals"]}
     return [(n, item, last.get(n.lower())) for n in waiting]
@@ -5400,7 +5935,7 @@ def _status_approvals(store, work, version):
             base = approved_baseline(store, a)  # a records version that a baseline froze is that baseline (ADR 0034)
             line = "  %s: %s %s, %s, %s" % (
                 n, a["decision"], a["date"], "baseline " + (base["name"] if base else a["baseline"]) if base or a["baseline"]
-                else "records version " + a["version"], "to the records as they are" if _approved_version(store, a) == version
+                else "records version " + a["version"], "to the records as they are" if same_version(store, _approved_version(store, a))
                 and n not in waiting else "to earlier records")
             since = _since(store, base, grouping=False) if base else ([], [], [])
             if "to earlier records" in line:
@@ -5492,10 +6027,6 @@ def _next(store, work, size, latest, since, waiting, version, house=None, nobody
                        "together (see the shape: %s --shape feature). Each gets a handover brief for the engineers: "
                        "%s bundle handover <feature>%s" % (CHECK, BA, FOLDER))
     else:
-        loose = _loose(store)
-        if loose:
-            out.append("Features: name one of %s on the '- Feature:' line of: %s." % (
-                ", ".join("'%s'" % _feature_shown(f, current) for f in current), ", ".join(r["name"] for r in loose)))
         for f in current:
             state, rel = _handover_state(store, f) if f["id"] and status_of(f) == "confirmed" else ("skip", "")
             if state == "none":
@@ -5544,7 +6075,7 @@ def _next_large(store, work, features):
     how, m = _stamp_of(store, rel)
     if how == "none":
         out.append("Scope brief: none yet. Make one for the business owner to agree: %s bundle scope%s" % (BA, FOLDER))
-    elif not (how == "stamped" and (m.group("b") or m.group("v") == version_of(store))):
+    elif not (how == "stamped" and (m.group("b") or same_version(store, m.group("v")))):
         out.append("Scope brief: %s is older than the records. Make it again: %s bundle scope%s" % (rel, BA, FOLDER))
     if not (work and work["delivery"]):
         out.append("Forecast: none. Add a '### Delivery' section to the Work (see the shape: %s --shape work), then: "
@@ -5558,7 +6089,7 @@ def _next_to_send(store, work, house):
     if not house or not work:
         return []
     dest, sent, out = house.places(), last_sent(work), []
-    ready = lambda rel: _stamp_of(store, rel)[1] is not None and (lambda m: not m.group("b") and m.group("v") == version_of(store))(
+    ready = lambda rel: _stamp_of(store, rel)[1] is not None and (lambda m: not m.group("b") and same_version(store, m.group("v")))(
         _stamp_of(store, rel)[1])
     behind = lambda key: not (key in sent and sent_is_current(store, sent[key]))
     sign = face_file(FACES["signoff"])
@@ -5592,6 +6123,7 @@ def status_lines(store):
            "Size: %s (%s)" % (size, "; ".join("%s: yes" % y for y in yes) if yes else "no size line says yes"),
            "Records:"] + [_counts_line(store, k) for k in KINDS if any(r["kind"] == k for r in recs)]
     out.append("Check: %s, %d information. Run: %s" % (_plural(nf, "finding"), len(problems) - nf, CHECK + FOLDER))
+    out += _status_file(store, work)
     out += _status_house(store, work)
     out += _status_published(store, work)
     out += _status_linked(work)
@@ -5915,6 +6447,9 @@ def main(argv=None):
             p.add_argument("--fix", action="store_true",
                            help="assign IDs to records that have a handle or none, and rewrite those handles in "
                                 "About lines. Writes a backup to backup/ first and changes nothing else")
+            p.add_argument("--split", action="store_true",
+                           help="file each Feature, and the records that belong to it alone, in records/<Feature ID>.md, so "
+                                "work.md stops growing. Writes a backup first and moves each record's lines unchanged")
             p.add_argument("--house", metavar="FOLDER",
                            help="the house the briefs in faces/ were made with, if not the Work's House line")
             p.add_argument("--adopt", metavar="HOUSE",

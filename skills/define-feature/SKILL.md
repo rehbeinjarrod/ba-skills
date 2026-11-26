@@ -11,7 +11,7 @@ A reply starts at step 6.
 
 ## 1. Read the records
 
-Run `python3 <skill folder>/../../helper/ba.py check --shape all`; read `work.md`. A feature with no Feature record gets a draft one, its `Intent` the person's words.
+Run `python3 <skill folder>/../../helper/ba.py check --shape all`; read `work.md` and the feature's file in `records/`. A feature with no Feature record gets a draft one, its `Intent` the person's words.
 
 Done when: you hold the shapes, the Feature, its requirements and Flows.
 
@@ -31,8 +31,6 @@ Done when: the `Flow` line names a Flow of two steps or more for every job.
 
 ## 3. Find the gaps
 
-Gaps:
-
 1. a Flow whose last step is no one's result
 2. a decision's `Go to` with no condition
 3. a condition with no Requirement stating its rule
@@ -41,19 +39,19 @@ Gaps:
 
 On "it depends" or a job passing between people, read [shared/cards/walk-a-process.md](../../shared/cards/walk-a-process.md). On two conditions on one step, read [shared/cards/untangle-the-rules.md](../../shared/cards/untangle-the-rules.md).
 
-Write each gap as a Question: `About` names the Flow or Requirement, `Working answer` is your recommended answer, `Owner` the Work's business analyst. Ask every gap that can be answered now; hold one back only when its answer depends on a Question not yet answered.
+Write each gap as a Question: `About` names the Flow or Requirement, `Working answer` is your recommended answer, `Owner` the Work's business analyst. Ask every gap answerable now; hold one back only when its answer depends on an unanswered Question.
 
-Done when: each gap is a Question in `work.md` with those lines, or held back.
+Done when: each gap is a Question with those lines, or held back.
 
 ## 4. Check
 
-Run `python3 <skill folder>/../../helper/ba.py check --fix` and do each fix it states under `work.md`.
+Run `python3 <skill folder>/../../helper/ba.py check --fix` and do each fix it states for the records.
 
 Done when: none is left.
 
 ## 5. Reply
 
-Reply with this, filled from `work.md`.
+Reply with this, filled from the records.
 
 ```
 **<feature name>**: <its intent>

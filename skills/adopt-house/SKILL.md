@@ -17,7 +17,7 @@ Done when: you know what the house holds, or there is no `house.md`.
 
 ## 2. Get the documents
 
-A house is drafted from two or three documents the organisation already approved. With none given, ask for them and end the turn.
+A house is drafted from documents the organisation already uses: one is enough, two or three are better. With none given, ask for them and end the turn.
 
 Done when: you have read each to its end.
 
@@ -70,7 +70,7 @@ Reply with this, filled in from the pack and step 4.
 - Where briefs and tracker items go. Give me the places and I land a test page and a test item for you to look at.
 - <each other "not set" the check reports>
 
-**See it:** house-preview/<form>/faces/signoff.md, made from <your records, or made-up records> through this house. Passages are left as their instructions.
+**See it:** house-preview/<form>/faces/signoff.md, made from <your records, or made-up records> through this house. Passages are left as their instructions. <omit with no sign-off template>
 
 The house is house.md. Tell me what to change, or say "use it".
 ```
